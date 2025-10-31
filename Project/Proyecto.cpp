@@ -93,7 +93,7 @@ int main()
     Model PielJaguar((char*)"Models/PielJaguar.obj");
     Model Piel2((char*)"Models/Piel2.obj");
     Model Vasijas((char*)"Models/Vasijas.obj");
-
+    Model Piramide((char*)"Models/Piramide.obj");
 
     glm::mat4 projection = glm::perspective(camera.GetZoom(), (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
 
@@ -164,11 +164,21 @@ int main()
         Piel2.Draw(shader);
 
 
-        //Dibujo Tendedero Vasijas
+        //Dibujo Piramide
         glm::mat4 model9(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
+        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
+		model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-        Vasijas.Draw(shader);
+        Piramide.Draw(shader);
+
+
+
+
+
+
+
+
+
 
         glfwSwapBuffers(window);
     }
