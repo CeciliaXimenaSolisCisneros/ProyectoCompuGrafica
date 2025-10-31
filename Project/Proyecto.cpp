@@ -90,8 +90,9 @@ int main()
     Model Aguacates((char*)"Models/Aguacates.obj");
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
-
-
+    Model PielJaguar((char*)"Models/PielJaguar.obj");
+    Model Piel2((char*)"Models/Piel2.obj");
+    Model Vasijas((char*)"Models/Vasijas.obj");
 
 
     glm::mat4 projection = glm::perspective(camera.GetZoom(), (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -149,8 +150,25 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
         Tendedero.Draw(shader);
 
+        //Dibujo Tendedero Piel Jaguar
+        glm::mat4 model7(1.0f);
+        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
+        PielJaguar.Draw(shader);
 
 
+        //Dibujo Tendedero Piel 2
+        glm::mat4 model8(1.0f);
+        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+        Piel2.Draw(shader);
+
+
+        //Dibujo Tendedero Vasijas
+        glm::mat4 model9(1.0f);
+        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
+        Vasijas.Draw(shader);
 
         glfwSwapBuffers(window);
     }
