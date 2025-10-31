@@ -167,6 +167,9 @@ void DoMovement()
     if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
+
+
+//para salir de la ventana
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
     if (GLFW_KEY_ESCAPE == key && GLFW_PRESS == action)
