@@ -27,6 +27,7 @@
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void MouseCallback(GLFWwindow* window, double xPos, double yPos);
 void DoMovement();
+void DibujarMesa(Shader shader, glm::mat4 view, glm::mat4 projection, glm::vec3 posicion, GLuint VAO);
 
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
@@ -51,7 +52,7 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Modelo Texturizado (sin iluminacion)", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Tianguis con Mesa", nullptr, nullptr);
 
     if (nullptr == window)
     {
@@ -82,6 +83,79 @@ int main()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     Shader shader("Shader/modelLoading.vs", "Shader/modelLoading.frag");
+
+    // CREAR VÉRTICES DE LA MESA
+
+    float verticesMesa[] = {
+        // Frente - Rojo
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+
+        // Atrás - Verde
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+
+        // Derecha - Azul
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+
+        // Izquierda - Amarillo
+        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 0.0f,
+
+        // Abajo - Cian
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+
+        // Arriba - Magenta
+        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+    };
+
+    // CONFIGURAR VAO Y VBO PARA LA MESA
+
+    GLuint VBO_Mesa, VAO_Mesa;
+    glGenVertexArrays(1, &VAO_Mesa);
+    glGenBuffers(1, &VBO_Mesa);
+
+    glBindVertexArray(VAO_Mesa);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_Mesa);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticesMesa), verticesMesa, GL_STATIC_DRAW);
+
+    // Posición
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+
+    // Color
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     //Cargamos modelos de Tianguis
     Model CanastaChiles((char*)"Models/CanastaChiles.obj");
@@ -115,6 +189,13 @@ int main()
         glm::mat4 view = camera.GetViewMatrix();
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
+
+        // DIBUJAR LA MESA
+
+        DibujarMesa(shader, view, projection, glm::vec3(0.0f, 0.0f, 0.0f), VAO_Mesa);
+
+        // DIBUJAR MODELOS DEL TIANGUIS
+     
 
         glm::mat4 model(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -171,17 +252,12 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
         Piramide.Draw(shader);
 
-
-
-
-
-
-
-
-
-
         glfwSwapBuffers(window);
     }
+
+    // Limpiar
+    glDeleteVertexArrays(1, &VAO_Mesa);
+    glDeleteBuffers(1, &VBO_Mesa);
 
     glfwTerminate();
     return 0;
@@ -225,4 +301,63 @@ void MouseCallback(GLFWwindow* window, double xPos, double yPos)
     lastY = (GLfloat)yPos;
 
     camera.ProcessMouseMovement(xOffset, yOffset);
+}
+
+
+// FUNCIÓN PARA DIBUJAR LA MESA CON PATAS
+
+void DibujarMesa(Shader shader, glm::mat4 view, glm::mat4 projection, glm::vec3 posicion, GLuint VAO)
+{
+    GLint modelLoc = glGetUniformLocation(shader.Program, "model");
+    glm::mat4 model;
+
+    glBindVertexArray(VAO);
+
+
+    // TABLETOP (Superficie de la mesa)
+  
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, posicion);
+    model = glm::scale(model, glm::vec3(3.0f, 0.1f, 2.0f)); // Ancho, Alto, Profundidad
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // PATA 1 - Frontal Derecha
+
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, posicion);
+    model = glm::translate(model, glm::vec3(1.35f, -0.45f, 0.9f));
+    model = glm::scale(model, glm::vec3(0.1f, 0.9f, 0.1f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // PATA 2 - Frontal Izquierda
+  
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, posicion);
+    model = glm::translate(model, glm::vec3(-1.35f, -0.45f, 0.9f));
+    model = glm::scale(model, glm::vec3(0.1f, 0.9f, 0.1f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // PATA 3 - Trasera Izquierda
+   
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, posicion);
+    model = glm::translate(model, glm::vec3(-1.35f, -0.45f, -0.9f));
+    model = glm::scale(model, glm::vec3(0.1f, 0.9f, 0.1f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+  
+    // PATA 4 - Trasera Derecha
+   
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, posicion);
+    model = glm::translate(model, glm::vec3(1.35f, -0.45f, -0.9f));
+    model = glm::scale(model, glm::vec3(0.1f, 0.9f, 0.1f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glBindVertexArray(0);
 }
