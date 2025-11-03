@@ -407,12 +407,12 @@ int main() {
     Model PielJaguar((char*)"Models/PielJaguar.obj");
     Model Piel2((char*)"Models/Piel2.obj");
     Model Piramide((char*)"Models/Piramide.obj");
-<<<<<<< HEAD
+
     Model TechosChozas((char*)"Models/TechosChozas.obj"); 
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
-=======
+
     Model Calendario((char*)"Models/calendario_azteca1.obj");
->>>>>>> d07be900cbed178ea5ad4f03d267c8445f4f7a34
+
 
     // Program/VAOs procedurales
     CreateProgram();
@@ -457,77 +457,77 @@ int main() {
         // Canasta
         glm::mat4 model(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         CanastaChiles.Draw(shader);
 
         // Chiles
         glm::mat4 model2(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model2));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         Chiles.Draw(shader);
 
         // Petates
         glm::mat4 model3(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model3));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         PetatesTianguis.Draw(shader);
 
         // Aguacates
         glm::mat4 model4(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model4));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         Aguacates.Draw(shader);
 
         // Jarrones
         glm::mat4 model5(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model5));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         Jarrones.Draw(shader);
 
         // Tendedero
         glm::mat4 model6(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         Tendedero.Draw(shader);
 
         // Pieles
         glm::mat4 model7(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         PielJaguar.Draw(shader);
 
         glm::mat4 model8(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         Piel2.Draw(shader);
 
-        // Pirámide con “desértico” (controlado por uApplyDesert en tu FS)
-        glm::mat4 model9(1.0f);
-        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
-        model9 = glm::scale(model9, glm::vec3(0.5f));
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 1);
-        Piramide.Draw(shader);
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
-
-
-<<<<<<< HEAD
 		//Dibujo Paredes Chozas
         glm::mat4 model10(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         ParedesChozas.Draw(shader);
 
 
 		//Techo Chozas
         glm::mat4 model11(1.0f); 
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
         TechosChozas.Draw(shader);
 
+
+        // Pirámide
+        glm::mat4 model12(1.0f);
+        model12 = glm::translate(model12, glm::vec3(0.0f, 0.0f, -100.0f));
+        model12 = glm::scale(model12, glm::vec3(0.5f));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model12));
+        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 1);
+        Piramide.Draw(shader);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
 
 
 
         // ====== Mesa / silla / florero / chihuahua / fogata ======
-=======
+
         glm::mat4 model9(1.0f);
         model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
         model9 = glm::scale(model9, glm::vec3(0.5f));
@@ -537,7 +537,7 @@ int main() {
         glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
 
         // ====== Procedural (gProg) ======
->>>>>>> d07be900cbed178ea5ad4f03d267c8445f4f7a34
+
         glUseProgram(gProg);
         GLint uProj = glGetUniformLocation(gProg, "projection");
         GLint uView = glGetUniformLocation(gProg, "view");
