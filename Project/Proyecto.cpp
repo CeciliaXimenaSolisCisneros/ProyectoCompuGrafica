@@ -281,6 +281,8 @@ int main() {
     Model Piel2((char*)"Models/Piel2.obj");
     Model Vasijas((char*)"Models/Vasijas.obj");
     Model Piramide((char*)"Models/Piramide.obj");
+    Model TechosChozas((char*)"Models/TechosChozas.obj"); 
+    Model ParedesChozas((char*)"Models/ParedesChozas.obj");
 
     CreateProgram();
     BuildCube();
@@ -362,6 +364,21 @@ int main() {
         model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
         Piramide.Draw(shader);
+
+
+		//Dibujo Paredes Chozas
+        glm::mat4 model10(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+        ParedesChozas.Draw(shader);
+
+
+		//Techo Chozas
+        glm::mat4 model11(1.0f); 
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+        TechosChozas.Draw(shader);
+
+
+
 
         // ====== Mesa / silla / florero / chihuahua / fogata ======
         glUseProgram(gProg);
