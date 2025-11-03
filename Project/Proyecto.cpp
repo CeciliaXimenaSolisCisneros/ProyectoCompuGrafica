@@ -523,7 +523,6 @@ int main() {
         glUniform1i(glGetUniformLocation(shader.Program, "view"), 1);
         Piramide.Draw(shader);
 
-
         //calendario
         glm::mat4 model13(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
