@@ -520,21 +520,20 @@ int main() {
         model12 = glm::translate(model12, glm::vec3(0.0f, 0.0f, -100.0f));
         model12 = glm::scale(model12, glm::vec3(0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model12));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 1);
+        glUniform1i(glGetUniformLocation(shader.Program, "view"), 1);
         Piramide.Draw(shader);
-        glUniform1i(glGetUniformLocation(shader.Program, "view"), 0);
 
 
+        //calendario
+        glm::mat4 model13(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
+        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 1);
+        Calendario.Draw(shader);
 
         // ====== Mesa / silla / florero / chihuahua / fogata ======
 
-        glm::mat4 model9(1.0f);
-        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
-        model9 = glm::scale(model9, glm::vec3(0.5f));
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 1);
-        Calendario.Draw(shader);
-        glUniform1i(glGetUniformLocation(shader.Program, "uApplyDesert"), 0);
+        
+    
 
         // ====== Procedural (gProg) ======
 
