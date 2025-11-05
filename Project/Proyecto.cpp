@@ -4,20 +4,20 @@
 //  - Florero, chihuahua voxel, máscara, fogata y antorchas
 //  - Suelo de pasto con TEXTURA (anti-tiling) y pirámide
 //  - Cielo con estrellas, SOL/LUNA y ciclo día/noche (HQ)
-//  - Montañas en PNG con alfa (billboard)
+//  - Sin montañas PNG (billboard removidas)
 // ===========================================================
 
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
+#include <array>            // para zero-init seguro si lo ocupas
 
 // GLEW / GLFW
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-// stb_image
-#define STB_IMAGE_IMPLEMENTATION
+// stb_image (solo encabezado; la implementación vive en stb_impl.cpp)
 #include "stb_image.h"
 
 // GLM
@@ -25,7 +25,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Modelos / utilidades
+// Modelos / utilidades (estructura estilo LearnOpenGL)
 #include "SOIL2/SOIL2.h"
 #include "Shader.h"
 #include "Camera.h"
@@ -44,7 +44,7 @@ int SCREEN_WIDTH, SCREEN_HEIGHT;
 Camera  camera(glm::vec3(0.0f, 0.0f, 3.0f));
 GLfloat lastX = WIDTH / 2.0f;
 GLfloat lastY = HEIGHT / 2.0f;
-bool keys[1024];
+bool keys[1024]{};
 bool firstMouse = true;
 
 // ================== Tiempo ======================
@@ -70,11 +70,6 @@ GLuint  gVAOGround = 0, gVBOGround = 0;
 // ================== Texturas ====================
 GLuint  gTexGrass = 0;
 
-// ================== Montañas PNG (billboard) ====
-GLuint  gVAOBill = 0, gVBOBill = 0;
-GLuint  gProgImg = 0;
-GLuint  gTexMountains = 0;
-
 // ===========================================================
 // Shaders procedurales (gProg)
 // ===========================================================
@@ -86,7 +81,7 @@ uniform mat4 view;
 uniform mat4 projection;
 out vec3 vPos;
 void main(){
-    vPos = (model * vec4(aPos,1.0)).xyz;            // posición en mundo
+    vPos = (model * vec4(aPos,1.0)).xyz;
     gl_Position = projection * view * vec4(vPos,1.0);
 })";
 
@@ -95,12 +90,12 @@ out vec4 FragColor;
 in vec3 vPos;
 
 uniform float uTime;
-uniform float uSun;      // 0..1 (día/noche)
-uniform vec3  uSunDir;   // dirección sol normalizada
+uniform float uSun;
+uniform vec3  uSunDir;
 uniform vec3  uCamp;
 uniform int   uMode;     // 0=fuego 1=madera 2=florero 3/4/6 colores 5=tejido 7..9 máscara 10=grassProc 11=sky 12=grassTex
 uniform sampler2D uTex;  // para uMode==12
-uniform float uTexScale; // tiling del pasto texturizado
+uniform float uTexScale;
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
 float noise(vec2 p){
@@ -158,7 +153,7 @@ float diskHalo(float mu, float rCore, float rHalo){
 void main(){
     if(uMode==1){ FragColor=vec4(wood(vPos),1.0); return; }
 
-    // ====== FUEGO (emisión) — boost suave al alpha
+    // Fuego
     if(uMode==0){
         float h=clamp(vPos.y,0.0,1.0);
         float r=length(vPos.xz);
@@ -176,7 +171,7 @@ void main(){
         FragColor=vec4(col,a); return;
     }
 
-    // ====== Asiento tejido
+    // Asiento tejido
     if(uMode==5){
         mat2 R=mat2(0.7071,-0.7071,0.7071,0.7071);
         vec2 uv=R*vPos.xz*6.0;
@@ -190,7 +185,7 @@ void main(){
         FragColor=vec4(base,1.0); return;
     }
 
-    // ====== Florero
+    // Florero
     if(uMode==2){
         vec3 terracotta=vec3(0.63,0.28,0.20);
         vec3 crema=vec3(0.90,0.82,0.72);
@@ -208,7 +203,7 @@ void main(){
     if(uMode==8){ FragColor=vec4(0.95,0.95,0.95,1.0); return; }
     if(uMode==9){ FragColor=vec4(0.05,0.05,0.05,1.0); return; }
 
-    // ====== Pasto procedural simple (opcional)
+    // Pasto procedural simple
     if(uMode==10){
         vec2 uv = vPos.xz * 0.45;
         float n1 = noise(uv*2.0);
@@ -225,19 +220,17 @@ void main(){
         FragColor = vec4(col, 1.0); return;
     }
 
-    // ====== Cielo + montañas procedural de horizonte
+    // Cielo + montañas de horizonte procedurales
     if(uMode==11){
         vec3 dir = normalize(vPos);
         float nightFactor; vec3 base = skyColor(dir, uSun, nightFactor);
 
-        // Nubes
         vec2 uvCloud = dir.xz * 0.7 + vec2(0.06*uTime, 0.0);
         float c  = fbm(uvCloud*1.1);
         float cloud = smoothstep(0.52, 0.70, c);
         vec3 cloudCol = mix(vec3(0.88), vec3(1.00), 0.5+0.5*clamp(uSun,0.0,1.0));
         base = mix(base, cloudCol, cloud * (0.30 + 0.40*clamp(uSun,0.0,1.0)));
 
-        // Sol y Luna
         float muSun  = dot(dir, normalize(uSunDir));
         float sunDisc= diskHalo(muSun, 0.020, 0.090);
         vec3  sunCol = vec3(1.0, 0.96, 0.85) * sunDisc * clamp(uSun*1.2, 0.0, 1.2);
@@ -247,7 +240,6 @@ void main(){
         float moonDisc= diskHalo(muMoon, 0.016, 0.060);
         vec3  moonCol = vec3(0.85, 0.88, 1.0) * moonDisc * (1.0-clamp(uSun,0.0,1.0)) * 0.75;
 
-        // Estrellas
         const float PI = 3.14159265359;
         vec2 suv; suv.x = atan(dir.z, dir.x)/(2.0*PI)+0.5; suv.y = asin(clamp(dir.y,-1.0,1.0))/PI+0.5;
         float stars = 0.0;
@@ -260,7 +252,6 @@ void main(){
         float starVis = (1.0-clamp(uSun,0.0,1.0)) * (0.25 + 0.75*smoothstep(0.12,0.0,dir.y));
         vec3 starCol = vec3(1.0)*clamp(stars,0.0,4.0)*starVis*tw;
 
-        // Montañas paramétricas
         float az = atan(dir.z, dir.x);
         float wind = 0.025*uTime;
         float ridge1 = fbm_ridged(vec2(az*1.65 + wind, 0.0));
@@ -287,15 +278,12 @@ void main(){
         FragColor = vec4(finalCol, 1.0); return;
     }
 
-    // ====== Pasto TEXTURIZADO (anti-tiling, luz balanceada)
+    // Pasto TEXTURIZADO (anti-tiling)
     if(uMode==12){
         vec2 uv0 = vPos.xz * uTexScale;
-
-        // Distorsión suave
         vec2 warp = vec2(fbm(uv0*0.45), fbm(uv0*0.45 + 37.3));
         uv0 += (warp-0.5)*0.18;
 
-        // Estocástico por celda
         vec2 cell = floor(uv0);
         vec2 f    = fract(uv0);
         float r   = hash(cell*0.721);
@@ -304,7 +292,6 @@ void main(){
         vec2  jitter = vec2(hash(cell+41.0), hash(cell+173.0)) - 0.5;
         vec2  uvA = (R*(f-0.5) + 0.5) + jitter*0.18 + cell;
 
-        // Segundo layer a otra escala
         vec2 uv1 = vPos.xz * (uTexScale*0.57);
         vec2 cell1 = floor(uv1);
         float r1   = hash(cell1*1.937);
@@ -317,15 +304,12 @@ void main(){
         vec3 texA = texture(uTex, uvA).rgb;
         vec3 texB = texture(uTex, uvB).rgb;
 
-        // Mezcla macro
         float mask  = smoothstep(0.40, 0.70, fbm(vPos.xz*0.07 + 13.1));
         vec3  albedo = mix(texA, texB, mask);
 
-        // Micro variación
         float micro = fbm(vPos.xz*1.2);
         albedo *= mix(0.96, 1.06, micro);
 
-        // Iluminación
         float lambert = clamp(dot(vec3(0,1,0), normalize(uSunDir)), 0.0, 1.0);
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float ambient = mix(0.40, 0.62, sunVis);
@@ -336,29 +320,6 @@ void main(){
     }
 
     FragColor = vec4(1,0,1,1);
-})";
-
-// ===========================================================
-// Shaders imagen (billboard PNG)
-// ===========================================================
-static const char* kVS_img = R"(#version 330 core
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec2 aUV;
-uniform mat4 model, view, projection;
-out vec2 vUV;
-void main(){
-    vUV = aUV;
-    gl_Position = projection * view * model * vec4(aPos,1.0);
-})";
-
-static const char* kFS_img = R"(#version 330 core
-in vec2 vUV;
-out vec4 FragColor;
-uniform sampler2D uImg;
-void main(){
-    vec4 c = texture(uImg, vUV);
-    if(c.a < 0.02) discard;
-    FragColor = c;
 })";
 
 // ===========================================================
@@ -377,14 +338,13 @@ static GLuint Link(GLuint vs, GLuint fs) {
     glDeleteShader(vs); glDeleteShader(fs); return p;
 }
 static void CreateProgram() { gProg = Link(Compile(GL_VERTEX_SHADER, kVS), Compile(GL_FRAGMENT_SHADER, kFS)); }
-static void CreateImgProgram() { gProgImg = Link(Compile(GL_VERTEX_SHADER, kVS_img), Compile(GL_FRAGMENT_SHADER, kFS_img)); }
 
 // Carga de textura 2D (mipmaps + anisotrópico si existe)
 static GLuint LoadTexture2D(const char* path, bool repeat = true) {
-    int w, h, nc;
+    int w = 0, h = 0, nc = 0;
     stbi_uc* data = stbi_load(path, &w, &h, &nc, 3);
     if (!data) { std::cout << "No se pudo cargar " << path << "\n"; return 0; }
-    GLuint tex; glGenTextures(1, &tex);
+    GLuint tex = 0; glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -395,30 +355,6 @@ static GLuint LoadTexture2D(const char* path, bool repeat = true) {
     if (GLEW_EXT_texture_filter_anisotropic) {
         GLfloat aniso = 0.0f; glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &aniso);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min(8.0f, aniso));
-    }
-    stbi_image_free(data);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    return tex;
-}
-
-// Carga de textura RGBA (para PNG con alfa)
-static GLuint LoadTextureRGBA(const char* path, bool repeat = true) {
-    int w, h, nc;
-    stbi_uc* data = stbi_load(path, &w, &h, &nc, 4);
-    if (!data) { std::cout << "No se pudo cargar " << path << "\n"; return 0; }
-    GLuint tex; glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    bool hasSRGB = GLEW_EXT_texture_sRGB || GLEW_VERSION_3_0;
-    GLenum internalFmt = hasSRGB ? GL_SRGB8_ALPHA8 : GL_RGBA8;
-    glTexImage2D(GL_TEXTURE_2D, 0, internalFmt, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_CLAMP_TO_EDGE : GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_CLAMP_TO_EDGE : GL_CLAMP_TO_EDGE);
-    if (GLEW_EXT_texture_filter_anisotropic) {
-        GLfloat anisoMax = 0.0f; glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &anisoMax);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min(8.0f, anisoMax));
     }
     stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -533,11 +469,10 @@ static void BuildCampfire() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glBindVertexArray(0);
 
-    // Llama: cono en abanico
     const int seg = 48;
-    const float r = 0.45f;          // un poco más ancho
+    const float r = 0.45f;
     std::vector<glm::vec3> flame; flame.reserve(seg * 6);
-    glm::vec3 tip(0, 1.35f, 0);     // un poco más alto
+    glm::vec3 tip(0, 1.35f, 0);
     for (int i = 0; i < seg; ++i) {
         float a0 = i * (2.f * 3.14159265f / seg);
         float a1 = (i + 1) * (2.f * 3.14159265f / seg);
@@ -575,25 +510,6 @@ static void BuildGround(float S = 220.0f) {
     glBindVertexArray(0);
 }
 
-static void BuildBillboard() {
-    // Plano 2x1 (ancho x alto), mirando +Z
-    struct V { float x, y, z, u, v; };
-    V quad[] = {
-        {-1.f, 0.f, 0.f, 0.f,1.f}, {+1.f, 0.f, 0.f, 1.f,1.f}, {+1.f, 1.f, 0.f, 1.f,0.f},
-        {-1.f, 0.f, 0.f, 0.f,1.f}, {+1.f, 1.f, 0.f, 1.f,0.f}, {-1.f, 1.f, 0.f, 0.f,0.f},
-    };
-    glGenVertexArrays(1, &gVAOBill);
-    glGenBuffers(1, &gVBOBill);
-    glBindVertexArray(gVAOBill);
-    glBindBuffer(GL_ARRAY_BUFFER, gVBOBill);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(V), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(V), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
-}
-
 // ===========================================================
 // main
 // ===========================================================
@@ -604,11 +520,9 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-
-    // Anti-aliasing por hardware (MSAA)
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Escena (pasto + montañas PNG + cielo procedural)", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Escena (pasto + cielo procedural)", nullptr, nullptr);
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return EXIT_FAILURE; }
 
     glfwMakeContextCurrent(window);
@@ -626,8 +540,8 @@ int main() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(1.0f, 1.0f);
-    glEnable(GL_FRAMEBUFFER_SRGB); // corrección gamma
-    glEnable(GL_MULTISAMPLE);      // MSAA
+    glEnable(GL_FRAMEBUFFER_SRGB);
+    glEnable(GL_MULTISAMPLE);
 
     // -------------- Carga de modelos (tu shader externo)
     Shader shader("Shader/modelLoading.vs", "Shader/modelLoading.frag");
@@ -644,20 +558,17 @@ int main() {
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
     Model Calendario((char*)"Models/calendario_azteca1.obj");
 
-    // -------------- Programa procedural e imagen + geometrías
+    // -------------- Programa procedural + geometrías
     CreateProgram();
-    CreateImgProgram();
     BuildCube();
     BuildSeatPlane();
     BuildVase();
     BuildCampfire();
     BuildGround();
-    BuildBillboard();
 
     // -------------- Texturas
     stbi_set_flip_vertically_on_load(0);
     gTexGrass = LoadTexture2D("Models/pasto.jpg", true);
-    gTexMountains = LoadTextureRGBA("Models/montaña.png", true); // PNG con alfa
 
     glm::mat4 projection = glm::perspective(camera.GetZoom(),
         (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 1000.0f);
@@ -689,7 +600,7 @@ int main() {
         glm::vec3 sunDir = glm::normalize(glm::vec3(ce * cosf(az), se, ce * sinf(az)));
         float sun = 0.5f + 0.5f * se;
 
-        // -------- CIELO
+        // -------- CIELO (procedural)
         {
             glUseProgram(gProg);
             glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
@@ -713,36 +624,6 @@ int main() {
             glUseProgram(0);
         }
 
-        // -------- MONTAÑAS PNG (billboard que mira a la cámara)
-        if (gTexMountains) {
-            glUseProgram(gProgImg);
-            glUniformMatrix4fv(glGetUniformLocation(gProgImg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-            glUniformMatrix4fv(glGetUniformLocation(gProgImg, "view"), 1, GL_FALSE, glm::value_ptr(view));
-
-            glm::vec3 fwd = camera.Front;
-            fwd.y = 0.0f; if (glm::length(fwd) < 1e-5f) fwd = glm::vec3(0, 0, -1);
-            fwd = glm::normalize(fwd);
-
-            float dist = 320.0f;
-            glm::vec3 center = camera.Position + fwd * dist;
-
-            float yaw = atan2f(fwd.x, fwd.z);
-            glm::mat4 Mmount(1.0f);
-            Mmount = glm::translate(Mmount, glm::vec3(center.x, 0.0f, center.z));
-            Mmount = glm::rotate(Mmount, yaw, glm::vec3(0, 1, 0));
-            Mmount = glm::scale(Mmount, glm::vec3(500.0f, 180.0f, 1.0f));
-            glUniformMatrix4fv(glGetUniformLocation(gProgImg, "model"), 1, GL_FALSE, glm::value_ptr(Mmount));
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gTexMountains);
-            glUniform1i(glGetUniformLocation(gProgImg, "uImg"), 0);
-
-            glBindVertexArray(gVAOBill);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            glBindVertexArray(0);
-            glUseProgram(0);
-        }
-
         // -------- SUELO (PASTO TEXTURIZADO)
         glUseProgram(gProg);
         glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -751,7 +632,7 @@ int main() {
         glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
         glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
         glUniform1i(glGetUniformLocation(gProg, "uMode"), 12);
-        glUniform1f(glGetUniformLocation(gProg, "uTexScale"), 0.28f); // tiling sugerido
+        glUniform1f(glGetUniformLocation(gProg, "uTexScale"), 0.28f);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, gTexGrass);
@@ -765,65 +646,48 @@ int main() {
         glBindVertexArray(0);
         glUseProgram(0);
 
-        // ====== DIBUJAR MODELOS DEL TIANGUIS (TAL CUAL) ======
+        // ====== DIBUJAR MODELOS DEL TIANGUIS ======
         shader.Use();
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
-        // DIBUJAR MODELOS DEL TIANGUIS
         glm::mat4 model(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
         CanastaChiles.Draw(shader);
 
-        //Dibujo Chiles de canasta Tianguis
         glm::mat4 model2(1.0f);
-        //model2 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model2));
         Chiles.Draw(shader);
 
-        //Dibujo Petates de tianguis
         glm::mat4 model3(1.0f);
-        //model3 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model3));
         PetatesTianguis.Draw(shader);
 
-        //Dibujo Aguacates Tianguis
         glm::mat4 model4(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model4));
         Aguacates.Draw(shader);
 
-        //Dibujo Jarrones Tianguis
         glm::mat4 model5(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model5));
         Jarrones.Draw(shader);
 
-        //Dibujo Tendedero Tianguis
         glm::mat4 model6(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
         Tendedero.Draw(shader);
 
-        //Dibujo Tendedero Piel Jaguar
         glm::mat4 model7(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
         PielJaguar.Draw(shader);
 
-        //Dibujo Tendedero Piel 2
         glm::mat4 model8(1.0f);
-        //model4 = glm::translate(model2, glm::vec3(0.5f, 0.0f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
         Piel2.Draw(shader);
 
-        //Dibujo Piramide
         glm::mat4 model9(1.0f);
         model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
         model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
         Piramide.Draw(shader);
-        // ====== FIN BLOQUE TAL CUAL ======
 
         // -------- Procedural (mesa, silla, etc.) con gProg
         glUseProgram(gProg);
@@ -928,12 +792,18 @@ int main() {
 
         // Máscara
         {
+            auto drawCubeLocal = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
+                glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MM));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
+                glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+                };
             glm::vec3 base = gTablePos + glm::vec3(+0.45f, 0.90f + 0.12f + 0.03f, +0.35f);
-            drawCubeAt(base, glm::vec3(0.22f, 0.02f, 0.16f), 7);
-            drawCubeAt(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.24f, 0.006f, 0.05f), 8);
-            drawCubeAt(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.05f, 0.006f, 0.18f), 8);
-            drawCubeAt(base + glm::vec3(+0.06f, 0.013f, +0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
-            drawCubeAt(base + glm::vec3(+0.06f, 0.013f, -0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
+            drawCubeLocal(base, glm::vec3(0.22f, 0.02f, 0.16f), 7);
+            drawCubeLocal(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.24f, 0.006f, 0.05f), 8);
+            drawCubeLocal(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.05f, 0.006f, 0.18f), 8);
+            drawCubeLocal(base + glm::vec3(+0.06f, 0.013f, +0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
+            drawCubeLocal(base + glm::vec3(+0.06f, 0.013f, -0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
         }
 
         // Fogata + antorchas
@@ -954,7 +824,7 @@ int main() {
         place(gCampPos + glm::vec3(0.0f, 0.06f, 0.0f), glm::vec3(0, 110, 0), glm::vec3(1.0f), 1);
         glBindVertexArray(gVAOLog); glDrawArrays(GL_TRIANGLES, 0, gLogVerts);
 
-        // Llamas — doble cara, aditivo, sin escribir Z (y restaurar estado)
+        // Llamas (aditivo)
         {
             place(gCampPos + glm::vec3(0.0f, 0.18f, 0.0f), glm::vec3(0, 0, 0),
                 glm::vec3(1.25f, 1.35f, 1.25f), 0);
@@ -993,31 +863,29 @@ int main() {
             glUniform1i(glGetUniformLocation(gProg, "uMode"), 1);
             glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
 
-            // Fuego de antorcha
-            {
-                glm::mat4 F(1.0f);
-                F = glm::translate(F, p + glm::vec3(0, h + 0.10f, 0));
-                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(F));
-                glUniform1i(glGetUniformLocation(gProg, "uMode"), 0);
+            // Fuego antorcha
+            glm::mat4 F(1.0f);
+            F = glm::translate(F, p + glm::vec3(0, h + 0.10f, 0));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(F));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 0);
 
-                GLboolean oldCull = glIsEnabled(GL_CULL_FACE);
-                GLint oldSrcRGB, oldDstRGB, oldSrcA, oldDstA;
-                glGetIntegerv(GL_BLEND_SRC_RGB, &oldSrcRGB);
-                glGetIntegerv(GL_BLEND_DST_RGB, &oldDstRGB);
-                glGetIntegerv(GL_BLEND_SRC_ALPHA, &oldSrcA);
-                glGetIntegerv(GL_BLEND_DST_ALPHA, &oldDstA);
+            GLboolean oldCull = glIsEnabled(GL_CULL_FACE);
+            GLint oldSrcRGB, oldDstRGB, oldSrcA, oldDstA;
+            glGetIntegerv(GL_BLEND_SRC_RGB, &oldSrcRGB);
+            glGetIntegerv(GL_BLEND_DST_RGB, &oldDstRGB);
+            glGetIntegerv(GL_BLEND_SRC_ALPHA, &oldSrcA);
+            glGetIntegerv(GL_BLEND_DST_ALPHA, &oldDstA);
 
-                glDisable(GL_CULL_FACE);
-                glDepthMask(GL_FALSE);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            glDisable(GL_CULL_FACE);
+            glDepthMask(GL_FALSE);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-                glBindVertexArray(gVAOFlame);
-                glDrawArrays(GL_TRIANGLES, 0, gFlameVerts);
+            glBindVertexArray(gVAOFlame);
+            glDrawArrays(GL_TRIANGLES, 0, gFlameVerts);
 
-                glDepthMask(GL_TRUE);
-                if (oldCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-                glBlendFunc(oldSrcRGB, oldDstRGB);
-            }
+            glDepthMask(GL_TRUE);
+            if (oldCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+            glBlendFunc(oldSrcRGB, oldDstRGB);
             };
         drawTorch(gCampPos + glm::vec3(+0.9f, 0.0f, +0.6f), 1.2f);
         drawTorch(gCampPos + glm::vec3(-0.9f, 0.0f, +0.6f), 1.2f);
