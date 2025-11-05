@@ -683,11 +683,21 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
         Piel2.Draw(shader);
 
+
         glm::mat4 model9(1.0f);
         model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
         model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
         Piramide.Draw(shader);
+
+        glm::mat4 model10(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+        ParedesChozas.Draw(shader);
+
+
+        glm::mat4 model11(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+        TechosChozas.Draw(shader);
 
         // -------- Procedural (mesa, silla, etc.) con gProg
         glUseProgram(gProg);
