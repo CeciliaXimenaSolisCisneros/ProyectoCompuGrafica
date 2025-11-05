@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <array>            // para zero-init seguro si lo ocupas
+#include <array>            
 
 // GLEW / GLFW
 #include <GL/glew.h>
@@ -552,11 +552,14 @@ int main() {
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
     Model PielJaguar((char*)"Models/PielJaguar.obj");
-    Model Piel2((char*)"Models/Piel2.obj");
+    Model PielesPiso((char*)"Models/PielesPiso.obj");
     Model Piramide((char*)"Models/Piramide.obj");
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
     Model Calendario((char*)"Models/calendario_azteca1.obj");
+    Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
+    Model Tunas((char*)"Models/Tunas.obj");
+    Model Vasijas((char*)"Models/Vasijas.obj");
 
     // -------------- Programa procedural + geometrías
     CreateProgram();
@@ -681,7 +684,7 @@ int main() {
 
         glm::mat4 model8(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
-        Piel2.Draw(shader);
+        PielesPiso.Draw(shader);
 
 
         glm::mat4 model9(1.0f);
@@ -698,6 +701,18 @@ int main() {
         glm::mat4 model11(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
         TechosChozas.Draw(shader);
+
+        glm::mat4 model12(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model12));
+        VasijasYMolcajete.Draw(shader);
+
+        glm::mat4 model13(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
+        Tunas.Draw(shader);
+       
+        glm::mat4 model14(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
+        Vasijas.Draw(shader);
 
         // -------- Procedural (mesa, silla, etc.) con gProg
         glUseProgram(gProg);
