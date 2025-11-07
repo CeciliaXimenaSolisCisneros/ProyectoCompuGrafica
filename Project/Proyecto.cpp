@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <array>            
+#include <array>            // para zero-init seguro si lo ocupas
 
 // GLEW / GLFW
 #include <GL/glew.h>
@@ -552,15 +552,19 @@ int main() {
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
     Model PielJaguar((char*)"Models/PielJaguar.obj");
-    Model PielesPiso((char*)"Models/PielesPiso.obj");
+    Model Piel2((char*)"Models/Piel2.obj");
     Model Piramide((char*)"Models/Piramide.obj");
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
+<<<<<<< HEAD
     Model Calendario((char*)"Models/calendario_azteca1.obj");
     Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
     Model Tunas((char*)"Models/Tunas.obj");
     Model Vasijas((char*)"Models/Vasijas.obj");
     Model CasaGrande((char*)"Models/CasaGrande.obj");
+=======
+    Model tula((char*)"Models/tula.obj");
+>>>>>>> 47bfa15968a9e52335b1867c820e86818645f21b
 
     // -------------- Programa procedural + geometrías
     CreateProgram();
@@ -685,20 +689,25 @@ int main() {
 
         glm::mat4 model8(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
-        PielesPiso.Draw(shader);
-
+        Piel2.Draw(shader);
 
         glm::mat4 model9(1.0f);
-        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, -100.0f));
+        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, 100.0f));
         model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
         Piramide.Draw(shader);
-
         glm::mat4 model10(1.0f);
+
+        
+        model10 = glm::translate(model10, glm::vec3(0.0f, 0.0f, -100.0f));
+        model10 = glm::rotate(model10, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model10 = glm::scale(model10, glm::vec3(1.5f, 1.5f, 1.5f));
+
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-        ParedesChozas.Draw(shader);
+        tula.Draw(shader);
 
 
+<<<<<<< HEAD
         glm::mat4 model11(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
         TechosChozas.Draw(shader);
@@ -719,6 +728,8 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
         CasaGrande.Draw(shader);
 
+=======
+>>>>>>> 47bfa15968a9e52335b1867c820e86818645f21b
         // -------- Procedural (mesa, silla, etc.) con gProg
         glUseProgram(gProg);
         GLint uProj = glGetUniformLocation(gProg, "projection");
