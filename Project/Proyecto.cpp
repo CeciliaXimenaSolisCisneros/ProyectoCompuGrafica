@@ -560,6 +560,7 @@ int main() {
     Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
     Model Tunas((char*)"Models/Tunas.obj");
     Model Vasijas((char*)"Models/Vasijas.obj");
+    Model CasaGrande((char*)"Models/CasaGrande.obj");
 
     // -------------- Programa procedural + geometrías
     CreateProgram();
@@ -713,6 +714,10 @@ int main() {
         glm::mat4 model14(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
         Vasijas.Draw(shader);
+
+        glm::mat4 model15(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
+        CasaGrande.Draw(shader);
 
         // -------- Procedural (mesa, silla, etc.) con gProg
         glUseProgram(gProg);
