@@ -532,10 +532,11 @@ int main() {
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
     Model PielJaguar((char*)"Models/PielJaguar.obj");
-    Model Piel2((char*)"Models/Piel2.obj");
+    Model PielesPiso((char*)"Models/PielesPiso.obj");
     Model Piramide((char*)"Models/Piramide.obj");
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
+<<<<<<< Updated upstream
     Model tula((char*)"Models/tula.obj");
     Model ar((char*)"Models/arbol.obj");
     Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
@@ -543,6 +544,19 @@ int main() {
     Model perro((char*)"Models/perro.obj");
     Model horse((char*)"Models/10026_Horse_v01-it2.obj");
     // Programa procedural + geometrías
+=======
+
+    Model Calendario((char*)"Models/calendario_azteca1.obj");
+    Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
+    Model Tunas((char*)"Models/Tunas.obj");
+    Model Vasijas((char*)"Models/Vasijas.obj");
+    Model CasaGrande((char*)"Models/CasaGrande.obj");
+
+    Model tula((char*)"Models/tula.obj");
+
+
+    // -------------- Programa procedural + geometrías
+>>>>>>> Stashed changes
     CreateProgram();
     BuildCube();
     BuildSeatPlane();
@@ -842,9 +856,15 @@ int main() {
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
             Tendedero.Draw(shader);
 
+<<<<<<< Updated upstream
             glm::mat4 model7(1.0f);
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
             PielJaguar.Draw(shader);
+=======
+        glm::mat4 model8(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+        PielesPiso.Draw(shader);
+>>>>>>> Stashed changes
 
             glm::mat4 model8(1.0f);
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
@@ -955,7 +975,38 @@ int main() {
         }
 
 
+<<<<<<< Updated upstream
         // -------- Procedural (mesa, silla, florero + flor) con gProg
+=======
+
+        glm::mat4 model11(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+        TechosChozas.Draw(shader);
+
+        glm::mat4 model12(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model12));
+        VasijasYMolcajete.Draw(shader);
+
+        glm::mat4 model13(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
+        Tunas.Draw(shader);
+       
+        glm::mat4 model14(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
+        Vasijas.Draw(shader);
+
+
+        glm::mat4 model15(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
+        CasaGrande.Draw(shader);
+    
+
+        glm::mat4 model16(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model16));
+        ParedesChozas.Draw(shader);
+
+        // -------- Procedural (mesa, silla, etc.) con gProg
+>>>>>>> Stashed changes
         glUseProgram(gProg);
         glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));

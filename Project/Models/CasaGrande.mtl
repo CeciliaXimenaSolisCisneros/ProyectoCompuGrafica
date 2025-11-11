@@ -11,6 +11,46 @@ d 1.000000
 illum 2
 map_Kd rustic_stone_wall_02_diff_4k.jpg
 
+newmtl Material.005
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd hessian_230_diff_4k.jpg
+
+newmtl Material.009
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Kd aztec_calendar.png
+
+newmtl Material.010
+Ns 16.027386
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd barro_track_diff_4k.jpg
+
+newmtl Material.013
+Ns 49.607449
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Tuna.jpg
+
 newmtl Material.015
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
@@ -20,3 +60,13 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd large_sandstone_blocks_01_diff_4k.jpg
+
+newmtl Material.020
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd PielJaguar.jpg
