@@ -113,8 +113,7 @@ private:
 				vector.y = mesh->mNormals[i].y;
 				vector.z = mesh->mNormals[i].z;
 				vertex.Normal = vector;
-			}
-			else {
+			} else {
 				vertex.Normal = glm::vec3(0.0f, 0.0f, 0.0f); // or some default value
 			}
 
