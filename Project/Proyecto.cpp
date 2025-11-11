@@ -1,31 +1,34 @@
 // ===========================================================
 //  Escena OpenGL (C++ / GLFW / GLEW / GLM / Assimp)
 //  - Mesa, silla (asiento tejido procedural)
-//  - Florero, chihuahua voxel, máscara, fogata y antorchas
-//  - Suelo de pasto con TEXTURA (anti-tiling) y pirámide
+//  - Florero, fogata y antorchas (shader preparado, uso base)
+//  - Suelo de pasto con TEXTURA (anti-tiling) y pirámides
 //  - Cielo con estrellas, SOL/LUNA y ciclo día/noche (HQ)
-//  - Sin montañas PNG (billboard removidas)
+//  - Árboles y cactus: instancias aleatorias con exclusiones
+//  - Shader externo para modelos + shader embebido procedural
 // ===========================================================
 
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
-#include <array>            // para zero-init seguro si lo ocupas
+#include <array>
+#include <random>
+#include <algorithm>
+#include <cstdlib>
 
-// GLEW / GLFW
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-// stb_image (solo encabezado; la implementación vive en stb_impl.cpp)
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// GLM
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// Modelos / utilidades (estructura estilo LearnOpenGL)
 #include "SOIL2/SOIL2.h"
 #include "Shader.h"
 #include "Camera.h"
@@ -41,7 +44,7 @@ const GLuint WIDTH = 800, HEIGHT = 600;
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 
 // ================== Cámara ======================
-Camera  camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera  camera(glm::vec3(0.0f, 1.6f, 6.0f));
 GLfloat lastX = WIDTH / 2.0f;
 GLfloat lastY = HEIGHT / 2.0f;
 bool keys[1024]{};
@@ -60,20 +63,24 @@ glm::vec3 gCampPos = glm::vec3(-3.2f, 0.0f, -9.8f);
 GLuint gProg = 0;
 
 // ================== VAOs / VBOs =================
-GLuint  gVAOCube = 0, gVBOCube = 0;    GLsizei gCubeVerts = 0;
-GLuint  gVAOSeat = 0, gVBOSeat = 0;    GLsizei gSeatVerts = 0;
-GLuint  gVAOVase = 0, gVBOVase = 0;    GLsizei gVaseVerts = 0;
-GLuint  gVAOFlame = 0, gVBOFlame = 0;  GLsizei gFlameVerts = 0;
-GLuint  gVAOLog = 0, gVBOLog = 0;      GLsizei gLogVerts = 0;
-GLuint  gVAOGround = 0, gVBOGround = 0;
+GLuint  gVAOCube = 0, gVBOCube = 0;   GLsizei gCubeVerts = 0;
+GLuint  gVAOSeat = 0, gVBOSeat = 0;   GLsizei gSeatVerts = 0;
+GLuint  gVAOVase = 0, gVBOVase = 0;   GLsizei gVaseVerts = 0;
+GLuint  gVAOGround = 0, gVBOGround = 0;   GLsizei gGroundVerts = 0;
 
 // ================== Texturas ====================
 GLuint  gTexGrass = 0;
 
+// ================== Instancias árbol/cactus =====
+const int AR_COUNT = 45;
+std::vector<glm::mat4> gArModels;
+
+const int CA_COUNT = 45;
+std::vector<glm::mat4> gcaModels;
+
 // ===========================================================
 // Shaders procedurales (gProg)
 // ===========================================================
-
 static const char* kVS = R"(#version 330 core
 layout(location=0) in vec3 aPos;
 uniform mat4 model;
@@ -92,10 +99,12 @@ in vec3 vPos;
 uniform float uTime;
 uniform float uSun;
 uniform vec3  uSunDir;
-uniform vec3  uCamp;
-uniform int   uMode;     // 0=fuego 1=madera 2=florero 3/4/6 colores 5=tejido 7..9 máscara 10=grassProc 11=sky 12=grassTex
-uniform sampler2D uTex;  // para uMode==12
-uniform float uTexScale;
+uniform vec3  uCamp;      // reservado
+uniform int   uMode;      // 0=fuego 1=madera 2=cerámica 3/4/6 colores 5=tejido 10=grassProc 11=sky 12=grassTex 13=hojas 14/15/16 flor
+uniform sampler2D uTex;   // para pasto texturizado
+uniform float uTexScale;  // tiling base
+uniform float uSeed;      // semilla per-flama
+uniform float uFlicker;   // factor de parpadeo externo
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
 float noise(vec2 p){
@@ -153,14 +162,15 @@ float diskHalo(float mu, float rCore, float rHalo){
 void main(){
     if(uMode==1){ FragColor=vec4(wood(vPos),1.0); return; }
 
-    // Fuego
+    // Fuego (cono con alpha + parpadeo)
     if(uMode==0){
         float h=clamp(vPos.y,0.0,1.0);
         float r=length(vPos.xz);
         float edge = 1.0 - smoothstep(0.15, 0.35, r);
-        float t=uTime*2.0;
+        float t=uTime*2.0 + uSeed*0.37;
         float flick = noise(vec2(r*6.0,h*8.0+t*3.5))*0.6
                     + noise(vec2(r*10.0+t*1.7,h*5.0))*0.4;
+        flick *= 0.95;
         vec3 c1=vec3(1.0,0.25,0.02), c2=vec3(1.0,0.55,0.05),
              c3=vec3(1.0,0.85,0.25), c4=vec3(1.0,0.95,0.75);
         float k=clamp(h*1.2+flick*0.2,0.0,1.0);
@@ -171,7 +181,7 @@ void main(){
         FragColor=vec4(col,a); return;
     }
 
-    // Asiento tejido
+    // Tejido (asiento)
     if(uMode==5){
         mat2 R=mat2(0.7071,-0.7071,0.7071,0.7071);
         vec2 uv=R*vPos.xz*6.0;
@@ -185,7 +195,7 @@ void main(){
         FragColor=vec4(base,1.0); return;
     }
 
-    // Florero
+    // Cerámica / florero
     if(uMode==2){
         vec3 terracotta=vec3(0.63,0.28,0.20);
         vec3 crema=vec3(0.90,0.82,0.72);
@@ -196,12 +206,10 @@ void main(){
         FragColor=vec4(col,1.0); return;
     }
 
+    // Colores varios
     if(uMode==3){ FragColor=vec4(0.84,0.72,0.54,1.0); return; }
     if(uMode==4){ FragColor=vec4(0.10,0.07,0.06,1.0); return; }
     if(uMode==6){ FragColor=vec4(0.88,0.42,0.55,1.0); return; }
-    if(uMode==7){ FragColor=vec4(0.80,0.12,0.12,1.0); return; }
-    if(uMode==8){ FragColor=vec4(0.95,0.95,0.95,1.0); return; }
-    if(uMode==9){ FragColor=vec4(0.05,0.05,0.05,1.0); return; }
 
     // Pasto procedural simple
     if(uMode==10){
@@ -220,7 +228,7 @@ void main(){
         FragColor = vec4(col, 1.0); return;
     }
 
-    // Cielo + montañas de horizonte procedurales
+    // Cielo + horizonte
     if(uMode==11){
         vec3 dir = normalize(vPos);
         float nightFactor; vec3 base = skyColor(dir, uSun, nightFactor);
@@ -257,7 +265,7 @@ void main(){
         float ridge1 = fbm_ridged(vec2(az*1.65 + wind, 0.0));
         float ridge2 = fbm_ridged(vec2(az*3.20 - 0.6*wind, 1.3));
         float ridge  = clamp(0.65*pow(ridge1,1.3)+0.35*pow(ridge2,1.6),0.0,1.0);
-        float elev = mix(-0.10, 0.24, ridge);
+        float elev = mix(-0.10, 0.18, ridge);
         float m = 1.0 - smoothstep(elev-0.008, elev+0.008, dir.y);
         m *= (1.0 - smoothstep(0.10, 0.35, dir.y));
 
@@ -265,20 +273,12 @@ void main(){
         vec3 mountDusk  = vec3(0.20,0.18,0.22);
         vec3 mountNight = vec3(0.08,0.09,0.12);
         vec3 mountCol   = mix(mountNight, mix(mountDusk, mountDay, clamp(uSun,0.0,1.0)), clamp(uSun,0.0,1.0));
-        float rock = fbm(vec2(az*6.0, elev*25.0));
-        mountCol *= (0.92 + 0.08*rock);
-        float hAbove = dir.y - elev;
-        float snow = smoothstep(0.06, 0.12, hAbove);
-        vec3 snowCol = mix(vec3(0.90), vec3(1.0), 0.35 + 0.35*clamp(uSun,0.0,1.0));
-        mountCol = mix(mountCol, snowCol, snow);
-        mountCol = mix(mountCol, base, 0.35*smoothstep(-0.35,0.15,dir.y));
-
         vec3 sky = base + sunCol + moonCol + starCol;
         vec3 finalCol = mix(sky, mountCol, m);
         FragColor = vec4(finalCol, 1.0); return;
     }
 
-    // Pasto TEXTURIZADO (anti-tiling)
+    // Pasto TEXTURIZADO anti-tiling
     if(uMode==12){
         vec2 uv0 = vPos.xz * uTexScale;
         vec2 warp = vec2(fbm(uv0*0.45), fbm(uv0*0.45 + 37.3));
@@ -319,7 +319,25 @@ void main(){
         return;
     }
 
-    FragColor = vec4(1,0,1,1);
+    // Flor (tallo/hojas, pétalos, centro)
+    if(uMode==14){ FragColor = vec4(0.10, 0.45, 0.14, 1.0); return; } // tallo/hojas
+    if(uMode==15){ FragColor = vec4(0.95, 0.60, 0.75, 1.0); return; } // pétalo rosado
+    if(uMode==16){ FragColor = vec4(0.98, 0.85, 0.25, 1.0); return; } // centro amarillo
+
+    // Hojas de árbol (canopy)
+    if(uMode==13){
+        float n = 0.35*noise(vPos.xz*0.7) + 0.20*noise(vPos.xz*2.1) + 0.10*noise(vPos.xz*4.3);
+        vec3 leaf1 = vec3(0.07, 0.30, 0.06);
+        vec3 leaf2 = vec3(0.18, 0.52, 0.16);
+        vec3 col   = mix(leaf1, leaf2, clamp(0.55 + n, 0.0, 1.0));
+        float lambert = clamp(dot(normalize(vec3(0,1,0)), normalize(uSunDir)), 0.0, 1.0);
+        float sunVis  = clamp(uSun, 0.0, 1.0);
+        float ambient = mix(0.35, 0.55, sunVis);
+        float light   = ambient + lambert * mix(0.45, 0.95, sunVis);
+        col *= light * (0.92 + 0.08*noise(vPos.xz*3.7));
+        FragColor = vec4(col, 1.0);
+        return;
+    }
 })";
 
 // ===========================================================
@@ -339,7 +357,6 @@ static GLuint Link(GLuint vs, GLuint fs) {
 }
 static void CreateProgram() { gProg = Link(Compile(GL_VERTEX_SHADER, kVS), Compile(GL_FRAGMENT_SHADER, kFS)); }
 
-// Carga de textura 2D (mipmaps + anisotrópico si existe)
 static GLuint LoadTexture2D(const char* path, bool repeat = true) {
     int w = 0, h = 0, nc = 0;
     stbi_uc* data = stbi_load(path, &w, &h, &nc, 3);
@@ -359,6 +376,17 @@ static GLuint LoadTexture2D(const char* path, bool repeat = true) {
     stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D, 0);
     return tex;
+}
+
+// ------------------ Dispersión ------------------
+struct Exclusion { glm::vec2 centerXZ; float radius; };
+static bool IsFarEnough(const glm::vec2& p, const std::vector<glm::vec2>& used, float minDistSq) {
+    for (const auto& u : used) { glm::vec2 d = p - u; if (glm::dot(d, d) < minDistSq) return false; }
+    return true;
+}
+static bool OutsideExclusions(const glm::vec2& p, const std::vector<Exclusion>& ex) {
+    for (const auto& e : ex) { glm::vec2 d = p - e.centerXZ; if (glm::dot(d, d) < (e.radius * e.radius)) return false; }
+    return true;
 }
 
 // ===========================================================
@@ -421,7 +449,7 @@ static void BuildVase() {
         {0.43f, 0.10f},{0.36f, 0.20f},{0.28f, 0.28f},{0.22f, 0.32f},
         {0.18f, 0.34f},{0.16f, 0.35f}
     };
-    int seg = 64; v.reserve((prof.size() - 1) * seg * 6);
+    int seg = 64; v.reserve((int)((prof.size() - 1) * seg * 6));
     for (size_t k = 0; k + 1 < prof.size(); ++k) {
         float r0 = prof[k].x, y0 = prof[k].y;
         float r1 = prof[k + 1].x, y1 = prof[k + 1].y;
@@ -447,59 +475,10 @@ static void BuildVase() {
     glBindVertexArray(0);
 }
 
-static void BuildCampfire() {
-    float L = 1.4f, H = 0.12f, W = 0.12f;
-    float x0 = -L * 0.5f, x1 = L * 0.5f, y0 = -H * 0.5f, y1 = H * 0.5f, z0 = -W * 0.5f, z1 = W * 0.5f;
-    glm::vec3 p[] = { {x0,y0,z0},{x1,y0,z0},{x1,y1,z0},{x0,y1,z0},{x0,y0,z1},{x1,y0,z1},{x1,y1,z1},{x0,y1,z1} };
-    auto quad = [&](int a, int b, int c, int d, std::vector<glm::vec3>& o) {
-        o.push_back(p[a]); o.push_back(p[b]); o.push_back(p[c]);
-        o.push_back(p[a]); o.push_back(p[c]); o.push_back(p[d]);
-        };
-    std::vector<glm::vec3> log; log.reserve(36);
-    quad(0, 1, 2, 3, log); quad(4, 5, 6, 7, log);
-    quad(0, 4, 7, 3, log); quad(1, 5, 6, 2, log);
-    quad(3, 2, 6, 7, log); quad(0, 1, 5, 4, log);
-    gLogVerts = (GLsizei)log.size();
-    glGenVertexArrays(1, &gVAOLog);
-    glGenBuffers(1, &gVBOLog);
-    glBindVertexArray(gVAOLog);
-    glBindBuffer(GL_ARRAY_BUFFER, gVBOLog);
-    glBufferData(GL_ARRAY_BUFFER, log.size() * sizeof(glm::vec3), log.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glBindVertexArray(0);
-
-    const int seg = 48;
-    const float r = 0.45f;
-    std::vector<glm::vec3> flame; flame.reserve(seg * 6);
-    glm::vec3 tip(0, 1.35f, 0);
-    for (int i = 0; i < seg; ++i) {
-        float a0 = i * (2.f * 3.14159265f / seg);
-        float a1 = (i + 1) * (2.f * 3.14159265f / seg);
-        glm::vec3 A(0, 0, 0), B(r * cosf(a0), 0, r * sinf(a0)), C(r * cosf(a1), 0, r * sinf(a1));
-        flame.push_back(A); flame.push_back(B); flame.push_back(C);
-        flame.push_back(B); flame.push_back(C); flame.push_back(tip);
-    }
-    gFlameVerts = (GLsizei)flame.size();
-    glGenVertexArrays(1, &gVAOFlame);
-    glGenBuffers(1, &gVBOFlame);
-    glBindVertexArray(gVAOFlame);
-    glBindBuffer(GL_ARRAY_BUFFER, gVBOFlame);
-    glBufferData(GL_ARRAY_BUFFER, flame.size() * sizeof(glm::vec3), flame.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glBindVertexArray(0);
-}
-
 static void BuildGround(float S = 220.0f) {
-    float v[] = {
-        -S, 0.0f, -S,
-         S, 0.0f, -S,
-         S, 0.0f,  S,
-        -S, 0.0f, -S,
-         S, 0.0f,  S,
-        -S, 0.0f,  S
-    };
+    float v[] = { -S,0.0f,-S,  S,0.0f,-S,  S,0.0f, S,
+                  -S,0.0f,-S,  S,0.0f, S, -S,0.0f, S };
+    gGroundVerts = 6;
     glGenVertexArrays(1, &gVAOGround);
     glGenBuffers(1, &gVBOGround);
     glBindVertexArray(gVAOGround);
@@ -514,6 +493,7 @@ static void BuildGround(float S = 220.0f) {
 // main
 // ===========================================================
 int main() {
+    // GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -543,7 +523,7 @@ int main() {
     glEnable(GL_FRAMEBUFFER_SRGB);
     glEnable(GL_MULTISAMPLE);
 
-    // -------------- Carga de modelos (tu shader externo)
+    // Shaders/modelos
     Shader shader("Shader/modelLoading.vs", "Shader/modelLoading.frag");
     Model CanastaChiles((char*)"Models/CanastaChiles.obj");
     Model Chiles((char*)"Models/Chiles.obj");
@@ -556,36 +536,193 @@ int main() {
     Model Piramide((char*)"Models/Piramide.obj");
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
-<<<<<<< HEAD
-    Model Calendario((char*)"Models/calendario_azteca1.obj");
-    Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
-    Model Tunas((char*)"Models/Tunas.obj");
-    Model Vasijas((char*)"Models/Vasijas.obj");
-    Model CasaGrande((char*)"Models/CasaGrande.obj");
-=======
     Model tula((char*)"Models/tula.obj");
->>>>>>> 47bfa15968a9e52335b1867c820e86818645f21b
-
-    // -------------- Programa procedural + geometrías
+    Model ar((char*)"Models/arbol.obj");
+    Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
+    Model piramidesol((char*)"Models/PiramideSol.obj");
+    Model perro((char*)"Models/perro.obj");
+    Model horse((char*)"Models/10026_Horse_v01-it2.obj");
+    // Programa procedural + geometrías
     CreateProgram();
     BuildCube();
     BuildSeatPlane();
     BuildVase();
-    BuildCampfire();
     BuildGround();
 
-    // -------------- Texturas
+    // Texturas
     stbi_set_flip_vertically_on_load(0);
     gTexGrass = LoadTexture2D("Models/pasto.jpg", true);
 
+    // Proyección
     glm::mat4 projection = glm::perspective(camera.GetZoom(),
         (GLfloat)SCREEN_WIDTH / (GLfloat)SCREEN_HEIGHT, 0.1f, 1000.0f);
 
+    // Dimensiones mesa/silla
     const float topX = 1.6f, topZ = 3.0f, topY = 0.12f;
     const float legH = 0.90f, legT = 0.09f, railT = 0.06f, railH = 0.32f;
     const float seat = 0.60f, tLeg = 0.06f;
 
     gChairPos = gTablePos + glm::vec3(topX * 0.5f + 0.45f + seat * 0.5f, 0.0f, -topZ * 0.25f);
+
+    // --------- Instancias aleatorias de árboles ('ar') — alejados de la zona central ---------
+    {
+        // Dos “cinturones”: izquierda-fondo y derecha-fondo
+        const glm::vec2 X_RANGE_L(-150.0f, -80.0f);
+        const glm::vec2 Z_RANGE_L(-150.0f, -80.0f);
+
+        const glm::vec2 X_RANGE_R(80.0f, 150.0f);
+        const glm::vec2 Z_RANGE_R(-150.0f, -80.0f);
+
+        // Excluir áreas cercanas a mesa/campamento y a los monumentos
+        std::vector<Exclusion> ex = {
+            { glm::vec2(gTablePos.x,  gTablePos.z), 18.0f },  // mesa
+            { glm::vec2(gCampPos.x,   gCampPos.z), 14.0f },  // fogata
+            { glm::vec2(-60.0f,        -95.0f), 22.0f }, // Tula (según bloque que movimos)
+            { glm::vec2(75.0f,       -145.0f), 28.0f }, // Pirámide del Sol
+            { glm::vec2(0.0f,          0.0f), 40.0f }  // área central amplia
+        };
+
+        const float MIN_DIST = 7.0f;                 // separación entre árboles
+        const float MIN_DIST2 = MIN_DIST * MIN_DIST;
+        const int   MAX_TRIES = 12000;
+        const float Y_ROT_MIN = 0.0f, Y_ROT_MAX = 360.0f;
+        const float S_MIN = 0.85f, S_MAX = 1.45f; // alturas más contenidas
+
+        std::mt19937 rng(20251108);
+        std::uniform_real_distribution<float> distYaw(Y_ROT_MIN, Y_ROT_MAX);
+        std::uniform_real_distribution<float> distS(S_MIN, S_MAX);
+
+        auto fillBelt = [&](glm::vec2 XR, glm::vec2 ZR, int target) {
+            std::uniform_real_distribution<float> distX(XR.x, XR.y);
+            std::uniform_real_distribution<float> distZ(ZR.x, ZR.y);
+
+            std::vector<glm::vec2> usedXZ; usedXZ.reserve(target);
+            int placed = 0, tries = 0;
+            while (tries < MAX_TRIES && placed < target) {
+                ++tries;
+                glm::vec2 p(distX(rng), distZ(rng));
+                if (!OutsideExclusions(p, ex)) continue;
+                if (!IsFarEnough(p, usedXZ, MIN_DIST2)) continue;
+
+                usedXZ.push_back(p);
+                float yaw = distYaw(rng);
+                float s = distS(rng);
+
+                glm::mat4 M(1.0f);
+                M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+                M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0));
+                M = glm::scale(M, glm::vec3(s));
+
+                gArModels.push_back(M);
+                ++placed;
+            }
+            };
+
+        gArModels.clear();
+        gArModels.reserve(AR_COUNT);
+
+        // Distribución 50/50 entre ambos cinturones
+        int leftCount = AR_COUNT / 2;
+        int rightCount = AR_COUNT - leftCount;
+
+        fillBelt(X_RANGE_L, Z_RANGE_L, leftCount);
+        fillBelt(X_RANGE_R, Z_RANGE_R, rightCount);
+
+        // Relleno (si faltó alguno) usando el cinturón izquierdo
+        std::uniform_real_distribution<float> distX_L(X_RANGE_L.x, X_RANGE_L.y);
+        std::uniform_real_distribution<float> distZ_L(Z_RANGE_L.x, Z_RANGE_L.y);
+        while ((int)gArModels.size() < AR_COUNT) {
+            glm::vec2 p(distX_L(rng), distZ_L(rng));
+            if (!OutsideExclusions(p, ex)) continue;
+            float yaw = distYaw(rng);
+            float s = distS(rng);
+            glm::mat4 M(1.0f);
+            M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+            M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0));
+            M = glm::scale(M, glm::vec3(s));
+            gArModels.push_back(M);
+        }
+    }
+
+
+    // --------- Instancias aleatorias de cactus ('ca') ----------
+    {
+        const glm::vec2 X_RANGE_L(-150.0f, -80.0f);
+        const glm::vec2 Z_RANGE_L(-150.0f, -80.0f);
+
+        const glm::vec2 X_RANGE_R(80.0f, 150.0f);
+        const glm::vec2 Z_RANGE_R(-150.0f, -80.0f);
+
+        // Excluir áreas cercanas a mesa/campamento y a los monumentos
+        std::vector<Exclusion> ex = {
+            { glm::vec2(gTablePos.x,  gTablePos.z), 18.0f },
+            { glm::vec2(gCampPos.x,   gCampPos.z), 14.0f },
+            { glm::vec2(-60.0f,       -95.0f),     22.0f }, // Tula
+            { glm::vec2(75.0f,        -145.0f),    28.0f }, // Pirámide del Sol
+            { glm::vec2(0.0f,          0.0f),      40.0f }  // área central despejada
+        };
+
+        const float MIN_DIST = 6.0f;
+        const float MIN_DIST2 = MIN_DIST * MIN_DIST;
+        const int   MAX_TRIES = 100;
+        const float Y_ROT_MIN = 0.0f, Y_ROT_MAX = 360.0f;
+        const float S_MIN = 0.05f, S_MAX = 0.12f;
+
+        std::mt19937 rng(20251107);
+        std::uniform_real_distribution<float> distYaw(Y_ROT_MIN, Y_ROT_MAX);
+        std::uniform_real_distribution<float> distS(S_MIN, S_MAX);
+
+        auto fillBelt = [&](glm::vec2 XR, glm::vec2 ZR, int target) {
+            std::uniform_real_distribution<float> distX(XR.x, XR.y);
+            std::uniform_real_distribution<float> distZ(ZR.x, ZR.y);
+
+            std::vector<glm::vec2> usedXZ; usedXZ.reserve(target);
+            int placed = 0, tries = 0;
+            while (tries < MAX_TRIES && placed < target) {
+                ++tries;
+                glm::vec2 p(distX(rng), distZ(rng));
+                if (!OutsideExclusions(p, ex)) continue;
+                if (!IsFarEnough(p, usedXZ, MIN_DIST2)) continue;
+
+                usedXZ.push_back(p);
+                float yaw = distYaw(rng);
+                float s = distS(rng);
+
+                glm::mat4 M(1.0f);
+                M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+                M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0)); // solo rotación en Y
+                M = glm::scale(M, glm::vec3(s));
+
+                gcaModels.push_back(M);
+                ++placed;
+            }
+            };
+
+        gcaModels.clear();
+        gcaModels.reserve(CA_COUNT);
+
+        int leftCount = (int)std::round(CA_COUNT * 0.60f);
+        int rightCount = CA_COUNT - leftCount;
+
+        fillBelt(X_RANGE_L, Z_RANGE_L, leftCount);
+        fillBelt(X_RANGE_R, Z_RANGE_R, rightCount);
+
+        // Relleno (si faltan cactus)
+        std::uniform_real_distribution<float> distX_L(X_RANGE_L.x, X_RANGE_L.y);
+        std::uniform_real_distribution<float> distZ_L(Z_RANGE_L.x, Z_RANGE_L.y);
+        while ((int)gcaModels.size() < CA_COUNT) {
+            glm::vec2 p(distX_L(rng), distZ_L(rng));
+            if (!OutsideExclusions(p, ex)) continue;
+            float yaw = distYaw(rng);
+            float s = distS(rng);
+
+            glm::mat4 M(1.0f);
+            M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+            M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0)); // sin inclinarlos
+            M = glm::scale(M, glm::vec3(s));
+            gcaModels.push_back(M);
+        }
+    }
 
     const float cycleSeconds = 60.0f;
 
@@ -608,7 +745,7 @@ int main() {
         glm::vec3 sunDir = glm::normalize(glm::vec3(ce * cosf(az), se, ce * sinf(az)));
         float sun = 0.5f + 0.5f * se;
 
-        // -------- CIELO (procedural)
+        // ---------------- Cielo ----------------
         {
             glUseProgram(gProg);
             glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
@@ -632,7 +769,7 @@ int main() {
             glUseProgram(0);
         }
 
-        // -------- SUELO (PASTO TEXTURIZADO)
+        // ---------------- Suelo (pasto texturizado) ----------------
         glUseProgram(gProg);
         glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -650,92 +787,178 @@ int main() {
         MG = glm::translate(MG, glm::vec3(0.0f, -0.001f, 0.0f));
         glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MG));
         glBindVertexArray(gVAOGround);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glDrawArrays(GL_TRIANGLES, 0, gGroundVerts);
         glBindVertexArray(0);
         glUseProgram(0);
 
-        // ====== DIBUJAR MODELOS DEL TIANGUIS ======
+        // =======================================================
+        // MODELOS DEL TIANGUIS (shader externo)
+        // =======================================================
         shader.Use();
+
+        // Proyección y vista
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
-        glm::mat4 model(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        CanastaChiles.Draw(shader);
+        // Luz direccional basada en el sol (nombres compatibles)
+        auto U = [&](const char* n) { return glGetUniformLocation(shader.Program, n); };
+        glm::vec3 Ldir = -sunDir;
+        float amb = glm::mix(0.05f, 0.22f, sun);
+        float dif = glm::mix(0.10f, 1.00f, sun);
+        float spe = glm::mix(0.05f, 0.50f, sun);
+        glUniform3fv(U("viewPos"), 1, glm::value_ptr(camera.GetPosition()));
+        glUniform3fv(U("dirLight.direction"), 1, glm::value_ptr(Ldir));
+        glUniform3f(U("dirLight.ambient"), amb, amb, amb);
+        glUniform3f(U("dirLight.diffuse"), dif, dif, dif);
+        glUniform3f(U("dirLight.specular"), spe, spe, spe);
+        glUniform3fv(U("light.direction"), 1, glm::value_ptr(Ldir));
+        glUniform3f(U("light.ambient"), amb, amb, amb);
+        glUniform3f(U("light.diffuse"), dif, dif, dif);
+        glUniform3f(U("light.specular"), spe, spe, spe);
 
-        glm::mat4 model2(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model2));
-        Chiles.Draw(shader);
+        // Dibujo de props del tianguis
+        {
+            glm::mat4 model(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            CanastaChiles.Draw(shader);
 
-        glm::mat4 model3(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model3));
-        PetatesTianguis.Draw(shader);
+            glm::mat4 model2(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model2));
+            Chiles.Draw(shader);
 
-        glm::mat4 model4(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model4));
-        Aguacates.Draw(shader);
+            glm::mat4 model3(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model3));
+            PetatesTianguis.Draw(shader);
 
-        glm::mat4 model5(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model5));
-        Jarrones.Draw(shader);
+            glm::mat4 model4(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model4));
+            Aguacates.Draw(shader);
 
-        glm::mat4 model6(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
-        Tendedero.Draw(shader);
+            glm::mat4 model5(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model5));
+            Jarrones.Draw(shader);
 
-        glm::mat4 model7(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
-        PielJaguar.Draw(shader);
+            glm::mat4 model6(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
+            Tendedero.Draw(shader);
 
-        glm::mat4 model8(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
-        Piel2.Draw(shader);
+            glm::mat4 model7(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
+            PielJaguar.Draw(shader);
 
-        glm::mat4 model9(1.0f);
-        model9 = glm::translate(model9, glm::vec3(0.0f, 0.0f, 100.0f));
-        model9 = glm::scale(model9, glm::vec3(0.5f, 0.5f, 0.5f));
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-        Piramide.Draw(shader);
-        glm::mat4 model10(1.0f);
+            glm::mat4 model8(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+            Piel2.Draw(shader);
 
+            glm::mat4 model13(0.8f);
+            model13 = glm::translate(model13, glm::vec3(50.0f, 0.0f, -20.0f));
+            model13 = glm::scale(model13, glm::vec3(0.5f));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
+            perro.Draw(shader);
+
+
+
+            glm::mat4 model14(1.0f);
+            model14 = glm::translate(model14, glm::vec3(90.0f, 0.0f, -20.0f));
+            // Enderezar si el modelo viene Z-up desde Blender:
+            model14 = glm::rotate(model14, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+            // Orientación en Y (ajusta a gusto):
+            model14 = glm::rotate(model14, glm::radians(180.0f), glm::vec3(0, 1, 0));
+            model14 = glm::scale(model14, glm::vec3(0.5f));
+
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
+            horse.Draw(shader);
         
-        model10 = glm::translate(model10, glm::vec3(0.0f, 0.0f, -100.0f));
-        model10 = glm::rotate(model10, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model10 = glm::scale(model10, glm::vec3(1.5f, 1.5f, 1.5f));
 
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-        tula.Draw(shader);
+            // Pirámide (cercana)
+            glm::mat4 model9(1.0f);
+            model9 = glm::translate(model9, glm::vec3(90.0f, 0.0f, -20.0f));
+            model9 = glm::scale(model9, glm::vec3(0.5f));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
+            Piramide.Draw(shader);
+        }
+
+        // ---------------- Cactus (enderezados con Rfix) ----------------
+        {
+            const float kScaleJitterXY = 0.10f;
+            const float kScaleJitterY = 0.25f;
+            const float kTiltMaxDeg = 2.0f;
+            const float kYawJitterDeg = 8.0f;
+            const float kYOffset = 0.02f;
+            const float kCullDistance = 220.0f;
+
+            auto rand01 = [](uint32_t seed) {
+                float s = std::sin(seed * 12.9898f) * 43758.5453f;
+                return s - std::floor(s);
+                };
+
+            glm::mat4 Rfix(1.0f);
+         
+            Rfix = glm::rotate(Rfix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+
+            int idx = 0;
+            for (const glm::mat4& M : gcaModels) {
+                glm::vec3 posWorld = glm::vec3(M[3]);
+                if (glm::distance(posWorld, camera.GetPosition()) > kCullDistance) { ++idx; continue; }
+
+                float r0 = rand01(idx * 3u + 0u);
+                float r1 = rand01(idx * 3u + 1u);
+                float r2 = rand01(idx * 3u + 2u);
+
+                float sx = 1.0f + (r0 - 0.5f) * kScaleJitterXY * 2.0f;
+                float sy = 1.0f + (r1 - 0.5f) * kScaleJitterY * 2.0f;
+                float sz = 1.0f + (r2 - 0.5f) * kScaleJitterXY * 2.0f;
+
+                float rx = (r0 - 0.5f) * kTiltMaxDeg * 2.0f;
+                float rz = (r1 - 0.5f) * kTiltMaxDeg * 2.0f;
+                float ry = (r2 - 0.5f) * kYawJitterDeg * 2.0f;
+
+                glm::mat4 tweak(1.0f);
+                tweak = glm::translate(tweak, glm::vec3(0.0f, kYOffset, 0.0f));
+                tweak = glm::rotate(tweak, glm::radians(rx), glm::vec3(1, 0, 0));
+                tweak = glm::rotate(tweak, glm::radians(ry), glm::vec3(0, 1, 0));
+                tweak = glm::rotate(tweak, glm::radians(rz), glm::vec3(0, 0, 1));
+                tweak = glm::scale(tweak, glm::vec3(sx, sy, sz));
+
+                glm::mat4 M_final = M * Rfix * tweak;
+
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(M_final));
+                ca.Draw(shader);
+
+                ++idx;
+            }
+        }
+
+        // ===== Tula (izquierda-fondo) y Pirámide del Sol (derecha-fondo) =====
+        {
+            // --- TULA ---
+            glm::mat4 model10(1.0f);
+            model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
+            model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
+            model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+            tula.Draw(shader);
+
+            // --- PIRÁMIDE DEL SOL ---
+            glm::mat4 model11(1.0f);
+            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
+            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+            piramidesol.Draw(shader);
+        }
+
+        // ===== Árboles =====
+        for (const glm::mat4& M : gArModels) {
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(M));
+            ar.Draw(shader);
+        }
 
 
-<<<<<<< HEAD
-        glm::mat4 model11(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
-        TechosChozas.Draw(shader);
-
-        glm::mat4 model12(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model12));
-        VasijasYMolcajete.Draw(shader);
-
-        glm::mat4 model13(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
-        Tunas.Draw(shader);
-       
-        glm::mat4 model14(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
-        Vasijas.Draw(shader);
-
-        glm::mat4 model15(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
-        CasaGrande.Draw(shader);
-
-=======
->>>>>>> 47bfa15968a9e52335b1867c820e86818645f21b
-        // -------- Procedural (mesa, silla, etc.) con gProg
+        // -------- Procedural (mesa, silla, florero + flor) con gProg
         glUseProgram(gProg);
-        GLint uProj = glGetUniformLocation(gProg, "projection");
-        GLint uView = glGetUniformLocation(gProg, "view");
-        glUniformMatrix4fv(uProj, 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(uView, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
         glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
         glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
@@ -749,17 +972,17 @@ int main() {
 
         // Mesa
         {
-            float ox = topX * 0.5f - legT * 0.5f;
-            float oz = topZ * 0.5f - legT * 0.5f;
+            float ox = topX * 0.5f - 0.09f * 0.5f;
+            float oz = topZ * 0.5f - 0.09f * 0.5f;
             drawCubeAt(gTablePos + glm::vec3(0.0f, legH + topY * 0.5f, 0.0f), glm::vec3(topX, topY, topZ), 1);
-            drawCubeAt(gTablePos + glm::vec3(+ox, legH * 0.5f, +oz), glm::vec3(legT, legH, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(-ox, legH * 0.5f, +oz), glm::vec3(legT, legH, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(+ox, legH * 0.5f, -oz), glm::vec3(legT, legH, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(-ox, legH * 0.5f, -oz), glm::vec3(legT, legH, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(0.0f, railH, +oz), glm::vec3(topX - legT * 1.4f, railT, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(0.0f, railH, -oz), glm::vec3(topX - legT * 1.4f, railT, legT), 1);
-            drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(legT, railT, topZ - legT * 1.4f), 1);
-            drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(legT, railT, topZ - legT * 1.4f), 1);
+            drawCubeAt(gTablePos + glm::vec3(+ox, legH * 0.5f, +oz), glm::vec3(0.09f, legH, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(-ox, legH * 0.5f, +oz), glm::vec3(0.09f, legH, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(+ox, legH * 0.5f, -oz), glm::vec3(0.09f, legH, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(-ox, legH * 0.5f, -oz), glm::vec3(0.09f, legH, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(0.0f, railH, +oz), glm::vec3(topX - 0.09f * 1.4f, 0.06f, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(0.0f, railH, -oz), glm::vec3(topX - 0.09f * 1.4f, 0.06f, 0.09f), 1);
+            drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
+            drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
         }
 
         // Silla + asiento tejido
@@ -788,7 +1011,7 @@ int main() {
         {
             float vaseH = 0.60f;
             glm::mat4 MV(1.0f);
-            MV = glm::translate(MV, gTablePos + glm::vec3(0.0f, 0.90f + 0.12f + vaseH * 0.5f, 0.0f));
+            MV = glm::translate(MV, gTablePos + glm::vec3(0.0f, 0.75f + 0.12f + vaseH * 0.5f, 0.0f));
             MV = glm::scale(MV, glm::vec3(vaseH));
             glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MV));
             glUniform1i(glGetUniformLocation(gProg, "uMode"), 2);
@@ -796,6 +1019,73 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, gVaseVerts);
             glBindVertexArray(0);
         }
+
+        // ====== Flor dentro del florero (alineada al cuello) ======
+        {
+            const float vaseH = 0.60f;      // misma altura que usas al dibujar el florero
+            const float tableH = 0.75f;     // altura de la mesa que usas arriba
+            const float topT = 0.12f;     // grosor de la tapa de la mesa
+
+            // Altura del borde superior del florero (centro + mitad de su altura)
+            const float yMouth = tableH + topT + vaseH;
+
+            // Pequeño hundimiento para que el tallo nazca desde dentro del cuello
+            const float sink = 0.08f;
+
+            // Punto base: centro del cuello del florero
+            glm::vec3 mouth = gTablePos + glm::vec3(0.0f, yMouth, 0.0f);
+
+            // ---- Tallo (uMode=14, verde)
+            float stemH = 0.50f;
+            glm::mat4 MT(1.0f);
+            MT = glm::translate(MT, mouth + glm::vec3(0.0f, -sink + stemH * 0.5f, 0.0f));
+            MT = glm::scale(MT, glm::vec3(0.045f, stemH, 0.045f));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MT));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 14);
+            glBindVertexArray(gVAOCube);
+            glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+
+            // ---- Hojas (uMode=14, verdes) — a media altura del tallo
+            auto leaf = [&](glm::vec3 off, glm::vec3 scl, float yawDeg) {
+                glm::mat4 ML(1.0f);
+                ML = glm::translate(ML, mouth + off);
+                ML = glm::rotate(ML, glm::radians(yawDeg), glm::vec3(0, 1, 0));
+                ML = glm::scale(ML, scl);
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(ML));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), 14);
+                glBindVertexArray(gVAOCube);
+                glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+                };
+            leaf(glm::vec3(0.0f, -sink + 0.22f, 0.0f), glm::vec3(0.12f, 0.02f, 0.06f), 35.0f);
+            leaf(glm::vec3(0.0f, -sink + 0.30f, 0.0f), glm::vec3(0.12f, 0.02f, 0.06f), -35.0f);
+
+            // ---- Pétalos (uMode=15, rosa) alrededor del centro
+            const float petalRingY = -sink + stemH + 0.02f; // justo sobre el tallo
+            const float petalR = 0.075f;                // radio del anillo de pétalos
+            for (int i = 0; i < 6; ++i) {
+                float ang = glm::radians(i * 60.0f);
+                glm::mat4 MP(1.0f);
+                MP = glm::translate(MP, mouth + glm::vec3(0.0f, petalRingY, 0.0f));
+                MP = glm::rotate(MP, ang, glm::vec3(0, 1, 0));                 // gira alrededor del tallo
+                MP = glm::rotate(MP, glm::radians(-18.0f), glm::vec3(1, 0, 0)); // ligera inclinación
+                MP = glm::translate(MP, glm::vec3(0.0f, 0.0f, petalR));       // empuja hacia afuera
+                MP = glm::scale(MP, glm::vec3(0.06f, 0.02f, 0.12f));          // “lámina” del pétalo
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MP));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), 15);
+                glBindVertexArray(gVAOCube);
+                glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+            }
+
+            // ---- Centro (uMode=16, amarillo)
+            glm::mat4 MC(1.0f);
+            MC = glm::translate(MC, mouth + glm::vec3(0.0f, petalRingY + 0.005f, 0.0f));
+            MC = glm::scale(MC, glm::vec3(0.05f));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MC));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 16);
+            glBindVertexArray(gVAOCube);
+            glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+        }
+
 
         // Chihuahua (voxel)
         auto drawPart = [&](const glm::vec3& base, float yaw, glm::vec3 local, glm::vec3 scl, int mode) {
@@ -827,116 +1117,16 @@ int main() {
             drawPart(base, yaw, glm::vec3(-0.22f, 0.09f, -0.09f), glm::vec3(0.07f * s, 0.18f * s, 0.07f * s), 3);
             drawPart(base, yaw, glm::vec3(-0.32f, 0.32f, 0.0f), glm::vec3(0.05f * s, 0.16f * s, 0.05f * s), 3);
             };
-        float zDog = gTablePos.z + 3.0f * 0.5f + 0.55f;
-        float xDog = gTablePos.x - 0.30f;
-        drawDog(glm::vec3(xDog, 0.0f, zDog), 10.0f, 1.0f);
-
-        // Máscara
         {
-            auto drawCubeLocal = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
-                glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
-                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MM));
-                glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
-                glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-                };
-            glm::vec3 base = gTablePos + glm::vec3(+0.45f, 0.90f + 0.12f + 0.03f, +0.35f);
-            drawCubeLocal(base, glm::vec3(0.22f, 0.02f, 0.16f), 7);
-            drawCubeLocal(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.24f, 0.006f, 0.05f), 8);
-            drawCubeLocal(base + glm::vec3(0.0f, 0.011f, 0.0f), glm::vec3(0.05f, 0.006f, 0.18f), 8);
-            drawCubeLocal(base + glm::vec3(+0.06f, 0.013f, +0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
-            drawCubeLocal(base + glm::vec3(+0.06f, 0.013f, -0.05f), glm::vec3(0.04f, 0.004f, 0.04f), 9);
+            const float zDog = gTablePos.z + 3.0f * 0.5f + 0.55f;
+            const float xDog = gTablePos.x - 0.30f;
+            drawDog(glm::vec3(xDog, 0.0f, zDog), 10.0f, 1.0f);
         }
 
-        // Fogata + antorchas
-        auto place = [&](glm::vec3 pos, glm::vec3 rotDeg, glm::vec3 scl, int mode) {
-            glm::mat4 MF(1.0f);
-            MF = glm::translate(MF, pos);
-            if (rotDeg.x != 0) MF = glm::rotate(MF, glm::radians(rotDeg.x), glm::vec3(1, 0, 0));
-            if (rotDeg.y != 0) MF = glm::rotate(MF, glm::radians(rotDeg.y), glm::vec3(0, 1, 0));
-            if (rotDeg.z != 0) MF = glm::rotate(MF, glm::radians(rotDeg.z), glm::vec3(0, 0, 1));
-            MF = glm::scale(MF, scl);
-            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MF));
-            glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
-            };
-
-        // Troncos
-        place(gCampPos + glm::vec3(0.0f, 0.06f, 0.0f), glm::vec3(0, 20, 0), glm::vec3(1.0f), 1);
-        glBindVertexArray(gVAOLog); glDrawArrays(GL_TRIANGLES, 0, gLogVerts);
-        place(gCampPos + glm::vec3(0.0f, 0.06f, 0.0f), glm::vec3(0, 110, 0), glm::vec3(1.0f), 1);
-        glBindVertexArray(gVAOLog); glDrawArrays(GL_TRIANGLES, 0, gLogVerts);
-
-        // Llamas (aditivo)
-        {
-            place(gCampPos + glm::vec3(0.0f, 0.18f, 0.0f), glm::vec3(0, 0, 0),
-                glm::vec3(1.25f, 1.35f, 1.25f), 0);
-
-            GLboolean oldCull = glIsEnabled(GL_CULL_FACE);
-            GLint oldSrcRGB, oldDstRGB, oldSrcA, oldDstA;
-            glGetIntegerv(GL_BLEND_SRC_RGB, &oldSrcRGB);
-            glGetIntegerv(GL_BLEND_DST_RGB, &oldDstRGB);
-            glGetIntegerv(GL_BLEND_SRC_ALPHA, &oldSrcA);
-            glGetIntegerv(GL_BLEND_DST_ALPHA, &oldDstA);
-
-            glDisable(GL_CULL_FACE);
-            glDepthMask(GL_FALSE);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-            glBindVertexArray(gVAOFlame);
-            glDrawArrays(GL_TRIANGLES, 0, gFlameVerts);
-
-            glDepthMask(GL_TRUE);
-            if (oldCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-            glBlendFunc(oldSrcRGB, oldDstRGB);
-        }
-
-        auto drawTorch = [&](glm::vec3 p, float h) {
-            glm::mat4 TM(1.0f);
-            TM = glm::translate(TM, p + glm::vec3(0, h * 0.5f, 0));
-            TM = glm::scale(TM, glm::vec3(0.08f, h, 0.08f));
-            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(TM));
-            glUniform1i(glGetUniformLocation(gProg, "uMode"), 1);
-            glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-
-            TM = glm::mat4(1.0f);
-            TM = glm::translate(TM, p + glm::vec3(0, h + 0.04f, 0));
-            TM = glm::scale(TM, glm::vec3(0.16f, 0.06f, 0.16f));
-            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(TM));
-            glUniform1i(glGetUniformLocation(gProg, "uMode"), 1);
-            glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-
-            // Fuego antorcha
-            glm::mat4 F(1.0f);
-            F = glm::translate(F, p + glm::vec3(0, h + 0.10f, 0));
-            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(F));
-            glUniform1i(glGetUniformLocation(gProg, "uMode"), 0);
-
-            GLboolean oldCull = glIsEnabled(GL_CULL_FACE);
-            GLint oldSrcRGB, oldDstRGB, oldSrcA, oldDstA;
-            glGetIntegerv(GL_BLEND_SRC_RGB, &oldSrcRGB);
-            glGetIntegerv(GL_BLEND_DST_RGB, &oldDstRGB);
-            glGetIntegerv(GL_BLEND_SRC_ALPHA, &oldSrcA);
-            glGetIntegerv(GL_BLEND_DST_ALPHA, &oldDstA);
-
-            glDisable(GL_CULL_FACE);
-            glDepthMask(GL_FALSE);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-            glBindVertexArray(gVAOFlame);
-            glDrawArrays(GL_TRIANGLES, 0, gFlameVerts);
-
-            glDepthMask(GL_TRUE);
-            if (oldCull) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-            glBlendFunc(oldSrcRGB, oldDstRGB);
-            };
-        drawTorch(gCampPos + glm::vec3(+0.9f, 0.0f, +0.6f), 1.2f);
-        drawTorch(gCampPos + glm::vec3(-0.9f, 0.0f, +0.6f), 1.2f);
-        drawTorch(glm::vec3(-1.0f, 0.0f, -97.0f), 1.6f);
-        drawTorch(glm::vec3(+1.0f, 0.0f, -97.0f), 1.6f);
 
         glUseProgram(0);
-
         glfwSwapBuffers(window);
-    }
+    } // while
 
     glfwTerminate();
     return 0;
@@ -951,16 +1141,22 @@ void DoMovement() {
     if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT])  camera.ProcessKeyboard(LEFT, deltaTime);
     if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
 }
-void KeyCallback(GLFWwindow* window, int key, int, int action, int) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) glfwSetWindowShouldClose(window, GL_TRUE);
+
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+
     if (key >= 0 && key < 1024) {
-        if (action == GLFW_PRESS) keys[key] = true;
-        else if (action == GLFW_RELEASE) keys[key] = false;
+        if (action == GLFW_PRESS)   keys[key] = true;
+        if (action == GLFW_RELEASE) keys[key] = false;
     }
 }
+
 void MouseCallback(GLFWwindow*, double xPos, double yPos) {
     if (firstMouse) { lastX = (GLfloat)xPos; lastY = (GLfloat)yPos; firstMouse = false; }
-    GLfloat xOffset = (GLfloat)xPos - lastX; GLfloat yOffset = lastY - (GLfloat)yPos;
-    lastX = (GLfloat)xPos; lastY = (GLfloat)yPos;
+    GLfloat xOffset = (GLfloat)xPos - lastX;
+    GLfloat yOffset = lastY - (GLfloat)yPos;
+    lastX = (GLfloat)xPos;
+    lastY = (GLfloat)yPos;
     camera.ProcessMouseMovement(xOffset, yOffset);
 }
