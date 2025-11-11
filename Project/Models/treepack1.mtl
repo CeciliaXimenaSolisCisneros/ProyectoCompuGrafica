@@ -1,0 +1,46 @@
+# Blender 4.5.2 LTS MTL File: 'treepack1.blend'
+# www.blender.org
+
+newmtl Material.003
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/tilebark.jpg
+map_Ks C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/tilebarkspec.jpg
+map_Bump -bm 1.000000 C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/tilebarknormal.jpg
+
+newmtl Material.004
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+illum 2
+map_Kd C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Ks C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturespec-png.png
+map_d C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Bump -bm 1.000000 C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturenormal-png.png
+
+newmtl Material.005
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+illum 2
+map_Kd C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Ks C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturespec-png.png
+map_d C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Bump -bm 1.000000 C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturenormal-png.png
+
+newmtl Material.006
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+illum 2
+map_Kd C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Ks C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturespec-png.png
+map_d C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texture-png.png
+map_Bump -bm 1.000000 C:/Users/AmyVa/AppData/Local/Temp/4d785358-85c3-4e86-b2c5-05dbb2ed8fba_21-treepack1.zip.21-treepack1.zip/Documents/arbor/branch-texturenormal-png.png
