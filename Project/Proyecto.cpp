@@ -551,7 +551,9 @@ int main() {
     Model Vasijas((char*)"Models/Vasijas.obj");
     Model CasaGrande((char*)"Models/CasaGrande.obj");
 
-   
+    Model Juego_Pelota((char*)"Models/Juego_Pelota.obj");
+    Model Pelota((char*)"Models/Pelota.obj");
+
 
 
     // -------------- Programa procedural + geometrías
@@ -866,6 +868,14 @@ int main() {
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
             PielesPiso.Draw(shader);
 
+            // Pirámide (cercana)
+            glm::mat4 model9(1.0f);
+            model9 = glm::translate(model9, glm::vec3(90.0f, 0.0f, -20.0f));
+            model9 = glm::scale(model9, glm::vec3(0.5f));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
+            Piramide.Draw(shader);
+
+
             glm::mat4 model13(0.8f);
             model13 = glm::translate(model13, glm::vec3(50.0f, 0.0f, -20.0f));
             model13 = glm::scale(model13, glm::vec3(0.5f));
@@ -884,15 +894,47 @@ int main() {
 
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
             horse.Draw(shader);
-        
 
-            // Pirámide (cercana)
-            glm::mat4 model9(1.0f);
-            model9 = glm::translate(model9, glm::vec3(90.0f, 0.0f, -20.0f));
-            model9 = glm::scale(model9, glm::vec3(0.5f));
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-            Piramide.Draw(shader);
+            glm::mat4 model15(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
+            CasaGrande.Draw(shader);
+
+
+            glm::mat4 model16(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model16));
+            ParedesChozas.Draw(shader);
+            glm::mat4 model17(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model17));
+            TechosChozas.Draw(shader);
+
+            glm::mat4 model18(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model18));
+            VasijasYMolcajete.Draw(shader);
+
+            glm::mat4 model19(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model19));
+            Tunas.Draw(shader);
+
+            glm::mat4 model20(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model20));
+            Vasijas.Draw(shader);
+
+
+            glm::mat4 model21(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model21));
+            Juego_Pelota.Draw(shader);
+
+            glm::mat4 model22(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model22));
+            Pelota.Draw(shader);
+
         }
+
+
+
+
+
+     
 
         // ---------------- Cactus (enderezados con Rfix) ----------------
         {
@@ -966,34 +1008,10 @@ int main() {
 
 
 
-        // -------- Procedural (mesa, silla, florero + flor) con gProg
+   
 
-
-        glm::mat4 model17(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model17));
-        TechosChozas.Draw(shader);
-
-        glm::mat4 model18(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model18));
-        VasijasYMolcajete.Draw(shader);
-
-        glm::mat4 model13(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
-        Tunas.Draw(shader);
-       
-        glm::mat4 model14(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model14));
-        Vasijas.Draw(shader);
-
-
-        glm::mat4 model15(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model15));
-        CasaGrande.Draw(shader);
+     
     
-
-        glm::mat4 model16(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model16));
-        ParedesChozas.Draw(shader);
 
         // -------- Procedural (mesa, silla, etc.) con gProg
 
