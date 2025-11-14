@@ -31,6 +31,9 @@
 #include "Camera.h"
 #include "Model.h"
 
+
+GLuint gVAOSphere = 0;
+int gSphereVerts = 0;
 // ================== Prototipos ==================
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void MouseCallback(GLFWwindow* window, double xPos, double yPos);
@@ -356,6 +359,12 @@ void main(){
         FragColor = vec4(albedo * light + fireLight, 1.0);
         return;
     }
+   if(uMode==17){ FragColor = vec4(0.30, 0.82, 0.70, 1.0); return; } // jade claro
+if(uMode==18){ FragColor = vec4(0.12, 0.40, 0.33, 1.0); return; } // jade oscuro
+if(uMode==19){ FragColor = vec4(0.83, 0.35, 0.25, 1.0); return; } // rojo coral
+if(uMode==20){ FragColor = vec4(0.95, 0.95, 0.90, 1.0); return; } // blanco ojos
+if(uMode==21){ FragColor = vec4(0.05, 0.05, 0.05, 1.0); return; } // negro detalles
+
 
     // Flor (tallo/hojas, pétalos, centro)
     if(uMode==14){ vec3 col = vec3(0.10, 0.45, 0.14); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // tallo/hojas
@@ -380,6 +389,10 @@ void main(){
         return;
     }
 })";
+
+
+
+
 
 // ===========================================================
 // Utilidades
@@ -607,18 +620,18 @@ int main() {
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
     Model PielJaguar((char*)"Models/PielJaguar.obj");
-    Model PielesPiso((char*)"Models/PielesPiso.obj");
+    Model Piel2((char*)"Models/Piel2.obj");
     Model Piramide((char*)"Models/Piramide.obj");
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
-
     Model tula((char*)"Models/tula.obj");
     Model ar((char*)"Models/arbol.obj");
     Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
     Model piramidesol((char*)"Models/PiramideSol.obj");
     Model perro((char*)"Models/perro.obj");
-    Model horse((char*)"Models/10026_Horse_v01-it2.obj");
+    Model horse((char*)"Models/Juego_Pelota.obj");
     // Programa procedural + geometrías
+<<<<<<< HEAD
 
     Model Calendario((char*)"Models/calendario_azteca1.obj");
     Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
@@ -634,6 +647,8 @@ int main() {
 
     // -------------- Programa procedural + geometrías
 
+=======
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
     CreateProgram();
     BuildCube();
     BuildSeatPlane();
@@ -974,23 +989,32 @@ int main() {
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model6));
             Tendedero.Draw(shader);
 
-
             glm::mat4 model7(1.0f);
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model7));
             PielJaguar.Draw(shader);
 
-
-
             glm::mat4 model8(1.0f);
+<<<<<<< HEAD
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model8));
             PielesPiso.Draw(shader);
+=======
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+            Piel2.Draw(shader);
+
+            glm::mat4 model13(1.0f);
+            model13 = glm::translate(model13, glm::vec3(60.0f, 2.5f, 15.0f)); // ↑ subido en altura (Y = 3.5)
+            model13 = glm::scale(model13, glm::vec3(2.0f));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
+            horse.Draw(shader);
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
 
             // Pirámide (cercana)
             glm::mat4 model9(1.0f);
-            model9 = glm::translate(model9, glm::vec3(90.0f, 0.0f, -20.0f));
+            model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
             model9 = glm::scale(model9, glm::vec3(0.5f));
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model9));
             Piramide.Draw(shader);
+<<<<<<< HEAD
 
 
             glm::mat4 model13(0.8f);
@@ -1058,6 +1082,10 @@ int main() {
 
 
 
+=======
+        }
+
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         // ---------------- Cactus (enderezados con Rfix) ----------------
         {
             const float kScaleJitterXY = 0.10f;
@@ -1111,7 +1139,17 @@ int main() {
 
         // ===== Tula (izquierda-fondo) y Pirámide del Sol (derecha-fondo) =====
         {
+<<<<<<< HEAD
 
+=======
+            // --- TULA ---
+            glm::mat4 model10(1.0f);
+            model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
+            model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
+            model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+            tula.Draw(shader);
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
 
             // --- PIRÁMIDE DEL SOL ---
             glm::mat4 model11(1.0f);
@@ -1130,6 +1168,7 @@ int main() {
 
 
 
+<<<<<<< HEAD
 
 
 
@@ -1137,6 +1176,9 @@ int main() {
 
         // -------- Procedural (mesa, silla, etc.) con gProg
 
+=======
+        // -------- Procedural (mesa, silla, florero + flor) con gProg
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         glUseProgram(gProg);
         glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -1154,6 +1196,7 @@ int main() {
             glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
             };
 
+<<<<<<< HEAD
         // === NUEVO: helper para cono (fuego) ===
         auto drawConeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode, float seed, float flicker) {
             glm::mat4 M(1.0f);
@@ -1165,10 +1208,26 @@ int main() {
             glUniform1f(U_g("uFlicker"), flicker);  // parpadeo externo
             glBindVertexArray(gVAOCone);
             glDrawArrays(GL_TRIANGLES, 0, gConeVerts);
+=======
+        auto drawCubeAtRP = [&](glm::vec3 pos, glm::vec3 scl, float yawDeg, float pitchDeg, int mode = 1) {
+            glm::mat4 M(1.0f);
+            M = glm::translate(M, pos);
+            M = glm::rotate(M, glm::radians(yawDeg), glm::vec3(0, 1, 0));
+            M = glm::rotate(M, glm::radians(pitchDeg), glm::vec3(1, 0, 0));
+            M = glm::scale(M, scl);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(M));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
+            glBindVertexArray(gVAOCube);
+            glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
             glBindVertexArray(0);
             };
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         // Mesa
         {
             float ox = topX * 0.5f - 0.09f * 0.5f;
@@ -1183,6 +1242,96 @@ int main() {
             drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
             drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
         }
+        // =======================
+ // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
+ // =======================
+        {
+            glUseProgram(gProg);
+
+            const float yTop = legH + topY;
+            const float t = 0.020f;
+            const float eps = 0.010f;
+
+            // Proporción casi cuadrada
+            const float SX = topX * 0.15f;
+            const float SZ = SX * 1.05f;
+
+            // Frente al florero
+            glm::vec3 C = gTablePos + glm::vec3(-topX * 0.23f, yTop + t * 0.5f + eps, +topZ * 0.12f);
+
+            auto part = [&](glm::vec3 off, glm::vec3 scl, int mode) {
+                drawCubeAt(C + off, scl, mode);
+                };
+
+            // === BASE (jade claro)
+            part(glm::vec3(0, 0, 0), glm::vec3(SX, t, SZ), 17);
+
+            // === CONTORNO (jade oscuro)
+            part(glm::vec3(0, 0, 0), glm::vec3(SX * 0.96f, t, SZ * 0.96f), 18);
+
+            // === DETALLES MOSAICO ===
+            // Ceja superior (jade oscuro)
+            part(glm::vec3(0, 0, +SZ * 0.18f), glm::vec3(SX * 0.85f, t, SZ * 0.05f), 18);
+
+            // Línea roja (franja decorativa)
+            part(glm::vec3(0, 0, +SZ * 0.14f), glm::vec3(SX * 0.90f, t, SZ * 0.02f), 19);
+
+            // Ojos (blanco y negro)
+            part(glm::vec3(-SX * 0.25f, 0, +SZ * 0.10f), glm::vec3(SX * 0.22f, t, SZ * 0.04f), 20);
+            part(glm::vec3(+SX * 0.25f, 0, +SZ * 0.10f), glm::vec3(SX * 0.22f, t, SZ * 0.04f), 20);
+            // Pupilas negras
+            part(glm::vec3(-SX * 0.25f, 0, +SZ * 0.10f), glm::vec3(SX * 0.06f, t, SZ * 0.02f), 21);
+            part(glm::vec3(+SX * 0.25f, 0, +SZ * 0.10f), glm::vec3(SX * 0.06f, t, SZ * 0.02f), 21);
+
+            // Nariz (jade oscuro y rojo coral)
+            part(glm::vec3(0, 0, 0), glm::vec3(SX * 0.09f, t, SZ * 0.12f), 18);
+            part(glm::vec3(0, 0, -SZ * 0.03f), glm::vec3(SX * 0.06f, t, SZ * 0.02f), 19);
+
+            // Boca (rojo coral)
+            part(glm::vec3(0, 0, -SZ * 0.12f), glm::vec3(SX * 0.55f, t, SZ * 0.04f), 19);
+            // Línea negra en medio
+            part(glm::vec3(0, 0, -SZ * 0.12f), glm::vec3(SX * 0.25f, t, SZ * 0.01f), 21);
+
+            // Mejillas (jade claro más brillante)
+            part(glm::vec3(-SX * 0.32f, 0, -SZ * 0.03f), glm::vec3(SX * 0.12f, t, SZ * 0.08f), 17);
+            part(glm::vec3(+SX * 0.32f, 0, -SZ * 0.03f), glm::vec3(SX * 0.12f, t, SZ * 0.08f), 17);
+
+            // Grecas laterales rojas
+            part(glm::vec3(-SX * 0.34f, 0, -SZ * 0.06f), glm::vec3(SX * 0.06f, t, SZ * 0.05f), 19);
+            part(glm::vec3(+SX * 0.34f, 0, -SZ * 0.06f), glm::vec3(SX * 0.06f, t, SZ * 0.05f), 19);
+        }
+
+
+
+        // ---------------- PLATOS (2) sobre la tapa ----------------
+        {
+            const float yTop = legH + topY;
+            const float eps = 0.010f;
+
+            // semiextensos de la tapa
+            const float hx = topX * 0.5f;
+            const float hz = topZ * 0.5f;
+
+            // tamaño y grosor del plato
+            const float sPlX = std::min(topX, topZ) * 0.28f;
+            const float sPlZ = sPlX;
+            const float tPl = 0.026f;
+
+            // helper plato: base cerámica (uMode=2) + aro sutil (uMode=16)
+            auto plateAt = [&](glm::vec3 c) {
+                drawCubeAt(c + glm::vec3(0, tPl * 0.5f + eps, 0), glm::vec3(sPlX, tPl, sPlZ), 2);
+                drawCubeAt(c + glm::vec3(0, tPl * 0.95f + eps, 0), glm::vec3(sPlX * 0.90f, tPl * 0.22f, sPlZ * 0.90f), 16);
+                };
+
+            // posiciones: frente-izq y frente-der, con margen
+            const float mX = 0.06f, mZ = 0.06f;
+            glm::vec3 PL = gTablePos + glm::vec3(-hx + mX + sPlX * 0.5f, yTop, +hz - mZ - sPlZ * 0.5f);
+            glm::vec3 PR = gTablePos + glm::vec3(+hx - mX - sPlX * 0.5f, yTop, +hz - mZ - sPlZ * 0.5f);
+
+            plateAt(PL);
+            plateAt(PR);
+        }
+
 
         // Silla + asiento tejido
         {
@@ -1337,6 +1486,161 @@ int main() {
             const float xDog = gTablePos.x - 0.30f;
             drawDog(glm::vec3(xDog, 0.0f, zDog), 10.0f, 1.0f);
         }
+
+       
+        auto dog_drawPartR3 = [&](const glm::vec3& base, float yawDeg,
+            const glm::vec3& local,
+            float rotXDeg, float rotYDeg, float rotZDeg,
+            const glm::vec3& scl, int mode)
+            {
+                glm::mat4 M(1.0f);
+                M = glm::translate(M, base);
+                M = glm::rotate(M, glm::radians(yawDeg), glm::vec3(0, 1, 0));
+                M = glm::translate(M, local);
+                if (rotXDeg != 0.0f) M = glm::rotate(M, glm::radians(rotXDeg), glm::vec3(1, 0, 0));
+                if (rotYDeg != 0.0f) M = glm::rotate(M, glm::radians(rotYDeg), glm::vec3(0, 1, 0)); // cola
+                if (rotZDeg != 0.0f) M = glm::rotate(M, glm::radians(rotZDeg), glm::vec3(0, 0, 1));
+                M = glm::scale(M, scl);
+
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(M));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
+                glBindVertexArray(gVAOCube);
+                glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+            };
+
+        // ---- Dibuja perrito (patas + cola animadas, lengua rosa; ojos/orejas fijos)
+        auto dog_drawAnimated = [&](const glm::vec3& base, float yawDeg, float s, float t)
+            {
+                // Animación
+                const float stepHz = 2.0f;
+                const float phase = t * 2.0f * 3.14159265f * stepHz;
+                const float legSwing = 22.0f * std::sin(phase);
+                const float legOpp = 22.0f * std::sin(phase + 3.14159265f);
+                const float tailYaw = 20.0f * std::sin(phase * 1.5f);
+
+                // Cuerpo (dos bloques)
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.10f, 0.18f, 0.0f), 0, 0, 0, glm::vec3(0.38f * s, 0.22f * s, 0.22f * s), 3);
+                dog_drawPartR3(base, yawDeg, glm::vec3(-0.18f, 0.19f, 0.0f), 0, 0, 0, glm::vec3(0.30f * s, 0.20f * s, 0.22f * s), 3);
+
+                // Cabeza/hocico
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.30f, 0.28f, 0.0f), 0, 0, 0, glm::vec3(0.10f * s, 0.16f * s, 0.16f * s), 3);
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.43f, 0.34f, 0.0f), 0, 0, 0, glm::vec3(0.18f * s, 0.16f * s, 0.18f * s), 3);
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.55f, 0.30f, 0.0f), 0, 0, 0, glm::vec3(0.12f * s, 0.10f * s, 0.12f * s), 3);
+
+                // Nariz, ojos y orejas (fijos)
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.62f, 0.30f, 0.0f), 0, 0, 0, glm::vec3(0.06f * s), 4); // nariz
+                // Lengua (rosa)
+                // Lengua (rosa)
+
+
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.52f, 0.36f, +0.08f), 0, 0, 0, glm::vec3(0.03f * s), 4); // ojo der
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.52f, 0.36f, -0.08f), 0, 0, 0, glm::vec3(0.03f * s), 4); // ojo izq
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.46f, 0.48f, +0.07f), 0, 0, 0, glm::vec3(0.06f * s, 0.14f * s, 0.06f * s), 4); // oreja
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.46f, 0.48f, -0.07f), 0, 0, 0, glm::vec3(0.06f * s, 0.14f * s, 0.06f * s), 4); // oreja
+
+
+                // Cola (visible y con meneo)
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.64f, 0.24f, 0.0f), 0.0f, tailYaw, 0.0f,
+                    glm::vec3(0.10f * s, 0.035f * s, 0.06f * s), 3);
+
+                // Patas alternadas
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.20f, 0.09f, +0.09f), legSwing, 0, 0,
+                    glm::vec3(0.07f * s, 0.18f * s, 0.07f * s), 3); // FL
+                dog_drawPartR3(base, yawDeg, glm::vec3(+0.20f, 0.09f, -0.09f), legOpp, 0, 0,
+                    glm::vec3(0.07f * s, 0.18f * s, 0.07f * s), 3); // FR
+                dog_drawPartR3(base, yawDeg, glm::vec3(-0.22f, 0.09f, +0.09f), legOpp, 0, 0,
+                    glm::vec3(0.07f * s, 0.18f * s, 0.07f * s), 3); // BL
+                dog_drawPartR3(base, yawDeg, glm::vec3(-0.22f, 0.09f, -0.09f), legSwing, 0, 0,
+                    glm::vec3(0.07f * s, 0.18f * s, 0.07f * s), 3); // BR
+
+                // Cuello
+                dog_drawPartR3(base, yawDeg, glm::vec3(-0.32f, 0.32f, 0.0f), 0, 0, 0,
+                    glm::vec3(0.05f * s, 0.16f * s, 0.05f * s), 3);
+            };
+
+        // ---- Movimiento: lejos de la mesa, trayecto circular amplio
+        {
+            // Posición base alejada (ajusta a gusto)
+            const float x0 = gTablePos.x + 12.0f;  // derecha de la mesa
+            const float z0 = gTablePos.z + 8.0f;   // al frente de la mesa
+            const float y0 = 0.0f;
+
+            // Dirección/sentido
+            const float yaw0Deg = 90.0f;            // perro mirando +X
+            const float MODEL_FORWARD_SIGN = +1.0f; // si parece ir en reversa, usa -1.0f
+
+            // Tiempo y giro
+            const float t = currentFrame;        // o currentFrame*deltaTime
+            const float v = 0.9f;                // velocidad lineal
+            const float wDeg = 15.0f;               // °/s -> radio amplio (baja más para círculo mayor)
+            const float w = glm::radians(wDeg);
+
+            // Orientación actual
+            const float yawDeg = yaw0Deg + wDeg * t * MODEL_FORWARD_SIGN;
+
+            // Trayectoria circular (modelo unicycle exacto)
+            const float yaw0 = glm::radians(yaw0Deg);
+            const float R = (w != 0.0f) ? (v / w) : 0.0f;
+
+            float x = x0, z = z0;
+            if (w != 0.0f) {
+                x = x0 + R * (std::sin(yaw0 + w * t) - std::sin(yaw0));
+                z = z0 + R * (-std::cos(yaw0 + w * t) + std::cos(yaw0));
+            }
+            else {
+                x = x0 + v * std::cos(yaw0) * t;
+                z = z0 + v * std::sin(yaw0) * t;
+            }
+
+            glm::vec3 base(x, y0, z);
+            base.y += 0.02f * std::sin(t * 6.0f);   // rebote suave
+
+            dog_drawAnimated(base, yawDeg, 1.0f, t);
+        }
+
+        {
+            // Usamos gProg (el shader de cubos/procedurales)
+            glUseProgram(gProg);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
+            glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
+
+       
+         
+            const glm::vec3 basePos(55.0f, 0.0f, 15.0f); 
+            const float ballScale = 2.0f;          
+            const float bounceHeight = 3.8f;       // Altura máxima del rebote (para que alcance el aro)
+            const float bounceFrequency = 3.0f;    // Frecuencia del rebote (más alto = más rápido)
+            const float horizontalSpeed = 0.8f;    // Velocidad de movimiento horizontal
+            const float maxHorizontalOffset = 3.0f; // Máximo desplazamiento horizontal
+
+            // Cálculo del rebote vertical (va de 0 a 1)
+            float bounceFactor = std::abs(std::sin(currentFrame * bounceFrequency));
+
+            // Altura vertical de la pelota: basePos.y + offset por rebote + mitad de la escala (para que su base toque el suelo)
+            float yOffset = bounceFactor * bounceHeight + (ballScale * 0.5f);
+
+            
+            float xMove = std::sin(currentFrame * horizontalSpeed * 0.7f) * maxHorizontalOffset;
+            float zMove = std::cos(currentFrame * horizontalSpeed * 0.6f) * maxHorizontalOffset * 0.5f; // Un poco menos en Z
+
+            // Posición final
+            glm::vec3 finalPos = basePos + glm::vec3(xMove, yOffset, zMove);
+
+        
+            glm::mat4 MBall(1.0f);
+            MBall = glm::translate(MBall, finalPos);
+            MBall = glm::scale(MBall, glm::vec3(ballScale));
+
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MBall));
+
+            glBindVertexArray(gVAOCube);
+            glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+
+            glBindVertexArray(0);
+            glUseProgram(0);
+        }
+
 
 
         glUseProgram(0);
