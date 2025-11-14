@@ -1,8 +1,11 @@
 // ===========================================================
 //  Escena OpenGL (C++ / GLFW / GLEW / GLM / Assimp)
-//  - ... (Componentes anteriores)
-//  - (NUEVO) Fogata en gCampPos con llamas y luz dinámica
-//  - (NUEVO) Toggle de fogata con tecla 'F'
+//  - Mesa, silla (asiento tejido procedural)
+//  - Florero, fogata y antorchas (shader preparado, uso base)
+//  - Suelo de pasto con TEXTURA (anti-tiling) y pirámides
+//  - Cielo con estrellas, SOL/LUNA y ciclo día/noche (HQ)
+//  - Árboles y cactus: instancias aleatorias con exclusiones
+//  - Shader externo para modelos + shader embebido procedural
 // ===========================================================
 
 #include <iostream>
@@ -57,8 +60,7 @@ GLfloat lastFrame = 0.0f;
 // ================== Posiciones base =============
 glm::vec3 gTablePos = glm::vec3(-1.8f, 0.0f, -6.0f);
 glm::vec3 gChairPos = glm::vec3(-1.2f, 0.0f, -6.2f);
-// === POSICIÓN ACTUALIZADA ===
-glm::vec3 gCampPos = glm::vec3(0.0f, 0.0f, 0.0f);
+glm::vec3 gCampPos = glm::vec3(-3.2f, 0.0f, -9.8f);
 
 // ================== Shader embebido (procedural)
 GLuint gProg = 0;
@@ -68,10 +70,6 @@ GLuint  gVAOCube = 0, gVBOCube = 0;   GLsizei gCubeVerts = 0;
 GLuint  gVAOSeat = 0, gVBOSeat = 0;   GLsizei gSeatVerts = 0;
 GLuint  gVAOVase = 0, gVBOVase = 0;   GLsizei gVaseVerts = 0;
 GLuint  gVAOGround = 0, gVBOGround = 0;   GLsizei gGroundVerts = 0;
-// === NUEVO: Geometría para llamas ===
-GLuint  gVAOCone = 0, gVBOCone = 0;   GLsizei gConeVerts = 0;
-bool    gFireOn = false;             // === NUEVO (para tecla F)
-
 
 // ================== Texturas ====================
 GLuint  gTexGrass = 0;
@@ -97,7 +95,6 @@ void main(){
     gl_Position = projection * view * vec4(vPos,1.0);
 })";
 
-// === SHADER DE FRAGMENTOS (kFS) MODIFICADO PARA LUZ DE FOGATA ===
 static const char* kFS = R"(#version 330 core
 out vec4 FragColor;
 in vec3 vPos;
@@ -111,10 +108,6 @@ uniform sampler2D uTex;   // para pasto texturizado
 uniform float uTexScale;  // tiling base
 uniform float uSeed;      // semilla per-flama
 uniform float uFlicker;   // factor de parpadeo externo
-
-// === NUEVO: Uniforms para la luz de la fogata ===
-uniform vec3  uFirePos;   // Posición de la fogata
-uniform vec3  uFireColor; // Color e intensidad (será vec3(0,0,0) si está apagada)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
 float noise(vec2 p){
@@ -138,21 +131,6 @@ float fbm_ridged(vec2 p){
         a *= 0.55;
     }
     return v;
-}
-
-// === NUEVO: Función de iluminación de la fogata ===
-vec3 CalcFireLight(vec3 pos, vec3 normal, vec3 albedo) {
-    if (uFireColor.r < 0.01) return vec3(0.0); // Luz apagada
-
-    vec3 lightDir = normalize(uFirePos - pos);
-    float diff = max(dot(normal, lightDir), 0.0);
-    
-    float dist = length(uFirePos - pos);
-    // Atenuación (puedes ajustar estos valores)
-    float atten = 1.0 / (1.0 + 0.05 * dist + 0.015 * dist * dist); 
-    
-    // La luz de la fogata se suma al color base
-    return albedo * uFireColor * diff * atten; 
 }
 
 vec3 wood(vec3 p){
@@ -185,19 +163,9 @@ float diskHalo(float mu, float rCore, float rHalo){
 }
 
 void main(){
-    // === NUEVO: Calcular normal plana para objetos procedurales ===
-    vec3 flatNormal = normalize(cross(dFdx(vPos), dFdy(vPos)));
+    if(uMode==1){ FragColor=vec4(wood(vPos),1.0); return; }
 
-    // === MODIFICADO: Añadida luz de fogata a todos los modos ===
-
-    if(uMode==1){ 
-        vec3 col = wood(vPos);
-        col += CalcFireLight(vPos, flatNormal, col); // Añadir luz de fogata
-        FragColor=vec4(col,1.0); 
-        return; 
-    }
-
-    // Fuego (cono con alpha + parpadeo) - No se ilumina a sí mismo
+    // Fuego (cono con alpha + parpadeo)
     if(uMode==0){
         float h=clamp(vPos.y,0.0,1.0);
         float r=length(vPos.xz);
@@ -205,7 +173,7 @@ void main(){
         float t=uTime*2.0 + uSeed*0.37;
         float flick = noise(vec2(r*6.0,h*8.0+t*3.5))*0.6
                     + noise(vec2(r*10.0+t*1.7,h*5.0))*0.4;
-        flick *= 0.95 * uFlicker; // <--- Usamos el flicker externo
+        flick *= 0.95;
         vec3 c1=vec3(1.0,0.25,0.02), c2=vec3(1.0,0.55,0.05),
              c3=vec3(1.0,0.85,0.25), c4=vec3(1.0,0.95,0.75);
         float k=clamp(h*1.2+flick*0.2,0.0,1.0);
@@ -227,7 +195,6 @@ void main(){
         vec3 jute=vec3(0.90,0.86,0.72), navy=vec3(0.05,0.10,0.20);
         vec3 base=mix(navy,jute,kk);
         base+=0.08*noise(uv*2.5);
-        base += CalcFireLight(vPos, flatNormal, base); // Añadir luz de fogata
         FragColor=vec4(base,1.0); return;
     }
 
@@ -239,14 +206,13 @@ void main(){
         vec3 col=mix(terracotta,crema,b*0.25);
         if(abs(vPos.y-0.15)<0.06) col=mix(col,vec3(0.14,0.02,0.02),0.85);
         if(abs(vPos.y-0.00)<0.06) col=mix(col,vec3(0.14,0.02,0.02),0.85);
-        col += CalcFireLight(vPos, flatNormal, col); // Añadir luz de fogata
         FragColor=vec4(col,1.0); return;
     }
 
     // Colores varios
-    if(uMode==3){ vec3 col=vec3(0.84,0.72,0.54); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
-    if(uMode==4){ vec3 col=vec3(0.10,0.07,0.06); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
-    if(uMode==6){ vec3 col=vec3(0.88,0.42,0.55); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
+    if(uMode==3){ FragColor=vec4(0.84,0.72,0.54,1.0); return; }
+    if(uMode==4){ FragColor=vec4(0.10,0.07,0.06,1.0); return; }
+    if(uMode==6){ FragColor=vec4(0.88,0.42,0.55,1.0); return; }
 
     // Pasto procedural simple
     if(uMode==10){
@@ -261,14 +227,11 @@ void main(){
         float lambert = clamp(dot(normalize(vec3(0,1,0)), normalize(uSunDir)), 0.0, 1.0);
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float light   = 0.40 + lambert * mix(0.55, 1.00, sunVis);
-        
-        vec3 fireLight = CalcFireLight(vPos, vec3(0,1,0), col); // Pasto es plano
-        col = col * light + fireLight; // Añadir luz de sol y fogata
-
+        col *= light;
         FragColor = vec4(col, 1.0); return;
     }
 
-    // Cielo + horizonte (no se ilumina por la fogata)
+    // Cielo + horizonte
     if(uMode==11){
         vec3 dir = normalize(vPos);
         float nightFactor; vec3 base = skyColor(dir, uSun, nightFactor);
@@ -355,8 +318,7 @@ void main(){
         float ambient = mix(0.40, 0.62, sunVis);
         float light   = ambient + lambert * mix(0.55, 1.00, sunVis);
 
-        vec3 fireLight = CalcFireLight(vPos, vec3(0,1,0), albedo); // Pasto es plano
-        FragColor = vec4(albedo * light + fireLight, 1.0);
+        FragColor = vec4(albedo * light, 1.0);
         return;
     }
    if(uMode==17){ FragColor = vec4(0.30, 0.82, 0.70, 1.0); return; } // jade claro
@@ -367,9 +329,9 @@ if(uMode==21){ FragColor = vec4(0.05, 0.05, 0.05, 1.0); return; } // negro detal
 
 
     // Flor (tallo/hojas, pétalos, centro)
-    if(uMode==14){ vec3 col = vec3(0.10, 0.45, 0.14); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // tallo/hojas
-    if(uMode==15){ vec3 col = vec3(0.95, 0.60, 0.75); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // pétalo rosado
-    if(uMode==16){ vec3 col = vec3(0.98, 0.85, 0.25); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // centro amarillo
+    if(uMode==14){ FragColor = vec4(0.10, 0.45, 0.14, 1.0); return; } // tallo/hojas
+    if(uMode==15){ FragColor = vec4(0.95, 0.60, 0.75, 1.0); return; } // pétalo rosado
+    if(uMode==16){ FragColor = vec4(0.98, 0.85, 0.25, 1.0); return; } // centro amarillo
 
     // Hojas de árbol (canopy)
     if(uMode==13){
@@ -381,10 +343,7 @@ if(uMode==21){ FragColor = vec4(0.05, 0.05, 0.05, 1.0); return; } // negro detal
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float ambient = mix(0.35, 0.55, sunVis);
         float light   = ambient + lambert * mix(0.45, 0.95, sunVis);
-        
-        vec3 fireLight = CalcFireLight(vPos, flatNormal, col); // Luz de fogata
-        col = col * light * (0.92 + 0.08*noise(vPos.xz*3.7)) + fireLight;
-        
+        col *= light * (0.92 + 0.08*noise(vPos.xz*3.7));
         FragColor = vec4(col, 1.0);
         return;
     }
@@ -543,40 +502,6 @@ static void BuildGround(float S = 220.0f) {
     glBindVertexArray(0);
 }
 
-// === NUEVO: Geometría de Cono para las llamas ===
-static void BuildCone(int slices = 16) {
-    std::vector<glm::vec3> v;
-    v.reserve(slices * 6);
-    const float R = 0.5f, H = 1.0f;
-    // Lateral
-    for (int i = 0; i < slices; ++i) {
-        float a0 = (2.0f * 3.14159265f * i) / slices;
-        float a1 = (2.0f * 3.14159265f * (i + 1)) / slices;
-        glm::vec3 apex(0.0f, H, 0.0f);
-        glm::vec3 p0(R * cosf(a0), 0.0f, R * sinf(a0));
-        glm::vec3 p1(R * cosf(a1), 0.0f, R * sinf(a1));
-        v.push_back(apex); v.push_back(p0); v.push_back(p1);
-    }
-    // Base
-    for (int i = 0; i < slices; ++i) {
-        float a0 = (2.0f * 3.14159265f * i) / slices;
-        float a1 = (2.0f * 3.14159265f * (i + 1)) / slices;
-        glm::vec3 c(0.0f, 0.0f, 0.0f);
-        glm::vec3 p0(R * cosf(a0), 0.0f, R * sinf(a0));
-        glm::vec3 p1(R * cosf(a1), 0.0f, R * sinf(a1));
-        v.push_back(c); v.push_back(p1); v.push_back(p0);
-    }
-    glGenVertexArrays(1, &gVAOCone);
-    glGenBuffers(1, &gVBOCone);
-    glBindVertexArray(gVAOCone);
-    glBindBuffer(GL_ARRAY_BUFFER, gVBOCone);
-    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(glm::vec3), v.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glBindVertexArray(0);
-    gConeVerts = (GLsizei)v.size();
-}
-
 // ===========================================================
 // main
 // ===========================================================
@@ -590,7 +515,7 @@ int main() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Escena (F = Fogata)", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Escena (pasto + cielo procedural)", nullptr, nullptr);
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return EXIT_FAILURE; }
 
     glfwMakeContextCurrent(window);
@@ -631,30 +556,11 @@ int main() {
     Model perro((char*)"Models/perro.obj");
     Model horse((char*)"Models/Juego_Pelota.obj");
     // Programa procedural + geometrías
-    <<<<<< < HEAD
-
-        Model Calendario((char*)"Models/calendario_azteca1.obj");
-    Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
-    Model Tunas((char*)"Models/Tunas.obj");
-    Model Vasijas((char*)"Models/Vasijas.obj");
-    Model CasaGrande((char*)"Models/CasaGrande.obj");
-
-    Model Juego_Pelota((char*)"Models/Juego_Pelota.obj");
-    Model Pelota((char*)"Models/Pelota.obj");
-
-    Model FuegoCocinaCG((char*)"Models/FuegoCocinaCG.obj");
-
-
-    // -------------- Programa procedural + geometrías
-
-    ====== =
-        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-        CreateProgram();
+    CreateProgram();
     BuildCube();
     BuildSeatPlane();
     BuildVase();
     BuildGround();
-    BuildCone(14); // === NUEVO: Construir geometría de llamas
 
     // Texturas
     stbi_set_flip_vertically_on_load(0);
@@ -844,11 +750,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 view = camera.GetViewMatrix();
-        // === NUEVO: Lambdas para glGetUniformLocation ===
-        auto U_g = [&](const char* n) { return glGetUniformLocation(gProg, n); };
-        auto U = [&](const char* n) { return glGetUniformLocation(shader.Program, n); };
 
-        // === Cálculo de luces (SOL) ===
         float t = fmodf(currentFrame / cycleSeconds, 1.0f);
         float az = t * 6.2831853f;
         float el = sinf(az) * 0.8f;
@@ -856,35 +758,19 @@ int main() {
         glm::vec3 sunDir = glm::normalize(glm::vec3(ce * cosf(az), se, ce * sinf(az)));
         float sun = 0.5f + 0.5f * se;
 
-        // === NUEVO: Cálculo de luz de fogata ===
-        glm::vec3 fireColor(0.0f);
-        float fireFlicker = 1.0f;
-        if (gFireOn) {
-            fireFlicker = 0.85f + 0.25f * sinf(currentFrame * 7.0f);
-            // Color naranja/rojo con buena intensidad
-            fireColor = glm::vec3(1.0f, 0.45f, 0.1f) * fireFlicker * 2.5f; // Intensidad 2.5
-        }
-        // Posición de la luz (un poco elevada de la base)
-        glm::vec3 firePos = gCampPos + glm::vec3(0.0f, 0.2f, 0.0f);
-
-
         // ---------------- Cielo ----------------
         {
             glUseProgram(gProg);
             glm::mat4 viewNoTrans = glm::mat4(glm::mat3(view));
-            glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-            glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(viewNoTrans));
-            glUniform1f(U_g("uTime"), currentFrame);
-            glUniform1f(U_g("uSun"), sun);
-            glUniform3fv(U_g("uSunDir"), 1, glm::value_ptr(sunDir));
-            // === NUEVO: Enviar luz de fogata a gProg ===
-            glUniform3fv(U_g("uFirePos"), 1, glm::value_ptr(firePos));
-            glUniform3fv(U_g("uFireColor"), 1, glm::value_ptr(fireColor));
-
-            glUniform1i(U_g("uMode"), 11);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(viewNoTrans));
+            glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
+            glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
+            glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 11);
 
             glm::mat4 MSky(1.0f); MSky = glm::scale(MSky, glm::vec3(500.0f));
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MSky));
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MSky));
 
             glDepthFunc(GL_LEQUAL);
             glDepthMask(GL_FALSE);
@@ -898,25 +784,21 @@ int main() {
 
         // ---------------- Suelo (pasto texturizado) ----------------
         glUseProgram(gProg);
-        glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniform1f(U_g("uTime"), currentFrame);
-        glUniform1f(U_g("uSun"), sun);
-        glUniform3fv(U_g("uSunDir"), 1, glm::value_ptr(sunDir));
-        // === NUEVO: Enviar luz de fogata a gProg ===
-        glUniform3fv(U_g("uFirePos"), 1, glm::value_ptr(firePos));
-        glUniform3fv(U_g("uFireColor"), 1, glm::value_ptr(fireColor));
-
-        glUniform1i(U_g("uMode"), 12);
-        glUniform1f(U_g("uTexScale"), 0.28f);
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
+        glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
+        glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
+        glUniform1i(glGetUniformLocation(gProg, "uMode"), 12);
+        glUniform1f(glGetUniformLocation(gProg, "uTexScale"), 0.28f);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, gTexGrass);
-        glUniform1i(U_g("uTex"), 0);
+        glUniform1i(glGetUniformLocation(gProg, "uTex"), 0);
 
         glm::mat4 MG(1.0f);
         MG = glm::translate(MG, glm::vec3(0.0f, -0.001f, 0.0f));
-        glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MG));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MG));
         glBindVertexArray(gVAOGround);
         glDrawArrays(GL_TRIANGLES, 0, gGroundVerts);
         glBindVertexArray(0);
@@ -928,77 +810,57 @@ int main() {
         shader.Use();
 
         // Proyección y vista
-        glUniformMatrix4fv(U("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(U("view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniform3fv(U("viewPos"), 1, glm::value_ptr(camera.GetPosition()));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "view"), 1, GL_FALSE, glm::value_ptr(view));
 
-        // Luz direccional basada en el sol
+        // Luz direccional basada en el sol (nombres compatibles)
+        auto U = [&](const char* n) { return glGetUniformLocation(shader.Program, n); };
         glm::vec3 Ldir = -sunDir;
         float amb = glm::mix(0.05f, 0.22f, sun);
         float dif = glm::mix(0.10f, 1.00f, sun);
         float spe = glm::mix(0.05f, 0.50f, sun);
+        glUniform3fv(U("viewPos"), 1, glm::value_ptr(camera.GetPosition()));
         glUniform3fv(U("dirLight.direction"), 1, glm::value_ptr(Ldir));
         glUniform3f(U("dirLight.ambient"), amb, amb, amb);
         glUniform3f(U("dirLight.diffuse"), dif, dif, dif);
         glUniform3f(U("dirLight.specular"), spe, spe, spe);
-        // (Compatibilidad con nombres antiguos)
         glUniform3fv(U("light.direction"), 1, glm::value_ptr(Ldir));
         glUniform3f(U("light.ambient"), amb, amb, amb);
         glUniform3f(U("light.diffuse"), dif, dif, dif);
         glUniform3f(U("light.specular"), spe, spe, spe);
 
-        // === NUEVO: Enviar luz de fogata (Punto 0) al shader de modelos ===
-        // (Esto SÓLO funcionará si "modelLoading.frag" soporta "pointLights[0]")
-        glUniform3fv(U("pointLights[0].position"), 1, glm::value_ptr(firePos));
-        glUniform3f(U("pointLights[0].ambient"), fireColor.r * 0.05f, fireColor.g * 0.05f, fireColor.b * 0.05f);
-        glUniform3fv(U("pointLights[0].diffuse"), 1, glm::value_ptr(fireColor));
-        glUniform3f(U("pointLights[0].specular"), 1.0f, 1.0f, 1.0f); // Especular blanco
-        glUniform1f(U("pointLights[0].constant"), 1.0f);
-        glUniform1f(U("pointLights[0].linear"), 0.05f);      // Atenuación para modelos
-        glUniform1f(U("pointLights[0].quadratic"), 0.015f);  // Atenuación para modelos
-
-        // Apagar las otras 3 luces (si el shader las soporta)
-        glUniform3f(U("pointLights[1].diffuse"), 0.0f, 0.0f, 0.0f);
-        glUniform3f(U("pointLights[2].diffuse"), 0.0f, 0.0f, 0.0f);
-        glUniform3f(U("pointLights[3].diffuse"), 0.0f, 0.0f, 0.0f);
-
-
         // Dibujo de props del tianguis
         {
             glm::mat4 model(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model));
             CanastaChiles.Draw(shader);
 
             glm::mat4 model2(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model2));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model2));
             Chiles.Draw(shader);
 
             glm::mat4 model3(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model3));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model3));
             PetatesTianguis.Draw(shader);
 
             glm::mat4 model4(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model4));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model4));
             Aguacates.Draw(shader);
 
             glm::mat4 model5(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model5));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model5));
             Jarrones.Draw(shader);
 
             glm::mat4 model6(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model6));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model6));
             Tendedero.Draw(shader);
 
             glm::mat4 model7(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model7));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model7));
             PielJaguar.Draw(shader);
 
             glm::mat4 model8(1.0f);
-            <<<<<< < HEAD
-                glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model8));
-            PielesPiso.Draw(shader);
-            ====== =
-                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
             Piel2.Draw(shader);
 
             glm::mat4 model13(1.0f);
@@ -1006,210 +868,109 @@ int main() {
             model13 = glm::scale(model13, glm::vec3(2.0f));
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
             horse.Draw(shader);
-            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
 
-                // Pirámide (cercana)
-                glm::mat4 model9(1.0f);
+            // Pirámide (cercana)
+            glm::mat4 model9(1.0f);
             model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
             model9 = glm::scale(model9, glm::vec3(0.5f));
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model9));
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
             Piramide.Draw(shader);
-            <<<<<< < HEAD
-
-
-                glm::mat4 model13(0.8f);
-            model13 = glm::translate(model13, glm::vec3(50.0f, 0.0f, -20.0f));
-            model13 = glm::scale(model13, glm::vec3(0.5f));
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model13));
-            perro.Draw(shader);
-
-
-
-            glm::mat4 model14(1.0f);
-            model14 = glm::translate(model14, glm::vec3(90.0f, 0.0f, -20.0f));
-            // Enderezar si el modelo viene Z-up desde Blender:
-            model14 = glm::rotate(model14, glm::radians(-90.0f), glm::vec3(1, 0, 0));
-            // Orientación en Y (ajusta a gusto):
-            model14 = glm::rotate(model14, glm::radians(180.0f), glm::vec3(0, 1, 0));
-            model14 = glm::scale(model14, glm::vec3(0.5f));
-
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model14));
-            horse.Draw(shader);
-
-            glm::mat4 model15(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model15));
-            CasaGrande.Draw(shader);
-
-
-            glm::mat4 model16(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model16));
-            ParedesChozas.Draw(shader);
-            glm::mat4 model17(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model17));
-            TechosChozas.Draw(shader);
-
-            glm::mat4 model18(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model18));
-            VasijasYMolcajete.Draw(shader);
-
-            glm::mat4 model19(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model19));
-            Tunas.Draw(shader);
-
-            glm::mat4 model20(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model20));
-            Vasijas.Draw(shader);
-
-
-            glm::mat4 model21(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model21));
-            Juego_Pelota.Draw(shader);
-
-            glm::mat4 model22(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model22));
-            Pelota.Draw(shader);
-
-
-            glm::mat4 model23(1.0f);
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model23));
-            FuegoCocinaCG.Draw(shader);
-
         }
 
-
-
-
-
-
-
-        ====== =
-    }
-
-    >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         // ---------------- Cactus (enderezados con Rfix) ----------------
-    {
-        const float kScaleJitterXY = 0.10f;
-        const float kScaleJitterY = 0.25f;
-        const float kTiltMaxDeg = 2.0f;
-        const float kYawJitterDeg = 8.0f;
-        const float kYOffset = 0.02f;
-        const float kCullDistance = 220.0f;
+        {
+            const float kScaleJitterXY = 0.10f;
+            const float kScaleJitterY = 0.25f;
+            const float kTiltMaxDeg = 2.0f;
+            const float kYawJitterDeg = 8.0f;
+            const float kYOffset = 0.02f;
+            const float kCullDistance = 220.0f;
 
-        auto rand01 = [](uint32_t seed) {
-            float s = std::sin(seed * 12.9898f) * 43758.5453f;
-            return s - std::floor(s);
-            };
+            auto rand01 = [](uint32_t seed) {
+                float s = std::sin(seed * 12.9898f) * 43758.5453f;
+                return s - std::floor(s);
+                };
 
-        glm::mat4 Rfix(1.0f);
+            glm::mat4 Rfix(1.0f);
 
-        Rfix = glm::rotate(Rfix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+            Rfix = glm::rotate(Rfix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
-        int idx = 0;
-        for (const glm::mat4& M : gcaModels) {
-            glm::vec3 posWorld = glm::vec3(M[3]);
-            if (glm::distance(posWorld, camera.GetPosition()) > kCullDistance) { ++idx; continue; }
+            int idx = 0;
+            for (const glm::mat4& M : gcaModels) {
+                glm::vec3 posWorld = glm::vec3(M[3]);
+                if (glm::distance(posWorld, camera.GetPosition()) > kCullDistance) { ++idx; continue; }
 
-            float r0 = rand01(idx * 3u + 0u);
-            float r1 = rand01(idx * 3u + 1u);
-            float r2 = rand01(idx * 3u + 2u);
+                float r0 = rand01(idx * 3u + 0u);
+                float r1 = rand01(idx * 3u + 1u);
+                float r2 = rand01(idx * 3u + 2u);
 
-            float sx = 1.0f + (r0 - 0.5f) * kScaleJitterXY * 2.0f;
-            float sy = 1.0f + (r1 - 0.5f) * kScaleJitterY * 2.0f;
-            float sz = 1.0f + (r2 - 0.5f) * kScaleJitterXY * 2.0f;
+                float sx = 1.0f + (r0 - 0.5f) * kScaleJitterXY * 2.0f;
+                float sy = 1.0f + (r1 - 0.5f) * kScaleJitterY * 2.0f;
+                float sz = 1.0f + (r2 - 0.5f) * kScaleJitterXY * 2.0f;
 
-            float rx = (r0 - 0.5f) * kTiltMaxDeg * 2.0f;
-            float rz = (r1 - 0.5f) * kTiltMaxDeg * 2.0f;
-            float ry = (r2 - 0.5f) * kYawJitterDeg * 2.0f;
+                float rx = (r0 - 0.5f) * kTiltMaxDeg * 2.0f;
+                float rz = (r1 - 0.5f) * kTiltMaxDeg * 2.0f;
+                float ry = (r2 - 0.5f) * kYawJitterDeg * 2.0f;
 
-            glm::mat4 tweak(1.0f);
-            tweak = glm::translate(tweak, glm::vec3(0.0f, kYOffset, 0.0f));
-            tweak = glm::rotate(tweak, glm::radians(rx), glm::vec3(1, 0, 0));
-            tweak = glm::rotate(tweak, glm::radians(ry), glm::vec3(0, 1, 0));
-            tweak = glm::rotate(tweak, glm::radians(rz), glm::vec3(0, 0, 1));
-            tweak = glm::scale(tweak, glm::vec3(sx, sy, sz));
+                glm::mat4 tweak(1.0f);
+                tweak = glm::translate(tweak, glm::vec3(0.0f, kYOffset, 0.0f));
+                tweak = glm::rotate(tweak, glm::radians(rx), glm::vec3(1, 0, 0));
+                tweak = glm::rotate(tweak, glm::radians(ry), glm::vec3(0, 1, 0));
+                tweak = glm::rotate(tweak, glm::radians(rz), glm::vec3(0, 0, 1));
+                tweak = glm::scale(tweak, glm::vec3(sx, sy, sz));
 
-            glm::mat4 M_final = M * Rfix * tweak;
+                glm::mat4 M_final = M * Rfix * tweak;
 
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M_final));
-            ca.Draw(shader);
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(M_final));
+                ca.Draw(shader);
 
-            ++idx;
+                ++idx;
+            }
         }
-    }
 
         // ===== Tula (izquierda-fondo) y Pirámide del Sol (derecha-fondo) =====
-    {
-        <<<<<< < HEAD
-
-            ====== =
+        {
             // --- TULA ---
             glm::mat4 model10(1.0f);
-        model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
-        model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
-        model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
-        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-        tula.Draw(shader);
-        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+            model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
+            model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
+            model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+            tula.Draw(shader);
 
             // --- PIRÁMIDE DEL SOL ---
             glm::mat4 model11(1.0f);
-        model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
-        model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
-        model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
-        glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model11));
-        piramidesol.Draw(shader);
-    }
+            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
+            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+            piramidesol.Draw(shader);
+        }
 
-    // ===== Árboles =====
-    for (const glm::mat4& M : gArModels) {
-        glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M));
-        ar.Draw(shader);
-    }
-
-
-
-    <<<<<<< HEAD
+        // ===== Árboles =====
+        for (const glm::mat4& M : gArModels) {
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(M));
+            ar.Draw(shader);
+        }
 
 
 
-
-
-        // -------- Procedural (mesa, silla, etc.) con gProg
-
-        ====== =
         // -------- Procedural (mesa, silla, florero + flor) con gProg
-        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         glUseProgram(gProg);
-    glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniform1f(U_g("uTime"), currentFrame);
-    glUniform1f(U_g("uSun"), sun);
-    glUniform3fv(U_g("uSunDir"), 1, glm::value_ptr(sunDir));
-    // === NUEVO: Enviar luz de fogata a gProg (de nuevo) ===
-    glUniform3fv(U_g("uFirePos"), 1, glm::value_ptr(firePos));
-    glUniform3fv(U_g("uFireColor"), 1, glm::value_ptr(fireColor));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
+        glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
+        glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
 
-    auto drawCubeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
-        glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
-        glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MM));
-        glUniform1i(U_g("uMode"), mode);
-        glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-        };
+        auto drawCubeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
+            glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MM));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
+            glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+            };
 
-    <<<<<< < HEAD
-        // === NUEVO: helper para cono (fuego) ===
-        auto drawConeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode, float seed, float flicker) {
-        glm::mat4 M(1.0f);
-        M = glm::translate(M, pos);
-        M = glm::scale(M, scl);
-        glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(M));
-        glUniform1i(U_g("uMode"), mode);       // 0 = fuego
-        glUniform1f(U_g("uSeed"), seed);        // semilla
-        glUniform1f(U_g("uFlicker"), flicker);  // parpadeo externo
-        glBindVertexArray(gVAOCone);
-        glDrawArrays(GL_TRIANGLES, 0, gConeVerts);
-        ====== =
-            auto drawCubeAtRP = [&](glm::vec3 pos, glm::vec3 scl, float yawDeg, float pitchDeg, int mode = 1) {
+        auto drawCubeAtRP = [&](glm::vec3 pos, glm::vec3 scl, float yawDeg, float pitchDeg, int mode = 1) {
             glm::mat4 M(1.0f);
             M = glm::translate(M, pos);
             M = glm::rotate(M, glm::radians(yawDeg), glm::vec3(0, 1, 0));
@@ -1219,16 +980,12 @@ int main() {
             glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-                glBindVertexArray(0);
+            glBindVertexArray(0);
             };
 
 
-        <<<<<<< HEAD
-            ====== =
 
-            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-            // Mesa
+        // Mesa
         {
             float ox = topX * 0.5f - 0.09f * 0.5f;
             float oz = topZ * 0.5f - 0.09f * 0.5f;
@@ -1242,9 +999,9 @@ int main() {
             drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
             drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
         }
-            // =======================
-     // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
-     // =======================
+        // =======================
+ // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
+ // =======================
         {
             glUseProgram(gProg);
 
@@ -1348,8 +1105,8 @@ int main() {
             glm::mat4 MS(1.0f);
             MS = glm::translate(MS, gChairPos + glm::vec3(0.0f, 0.75f, 0.0f));
             MS = glm::scale(MS, glm::vec3(seat, 1.0f, seat));
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MS));
-            glUniform1i(U_g("uMode"), 5);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MS));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 5);
             glBindVertexArray(gVAOSeat);
             glDrawArrays(GL_TRIANGLES, 0, gSeatVerts);
             glBindVertexArray(0);
@@ -1361,8 +1118,8 @@ int main() {
             glm::mat4 MV(1.0f);
             MV = glm::translate(MV, gTablePos + glm::vec3(0.0f, 0.75f + 0.12f + vaseH * 0.5f, 0.0f));
             MV = glm::scale(MV, glm::vec3(vaseH));
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MV));
-            glUniform1i(U_g("uMode"), 2);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MV));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 2);
             glBindVertexArray(gVAOVase);
             glDrawArrays(GL_TRIANGLES, 0, gVaseVerts);
             glBindVertexArray(0);
@@ -1388,8 +1145,8 @@ int main() {
             glm::mat4 MT(1.0f);
             MT = glm::translate(MT, mouth + glm::vec3(0.0f, -sink + stemH * 0.5f, 0.0f));
             MT = glm::scale(MT, glm::vec3(0.045f, stemH, 0.045f));
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MT));
-            glUniform1i(U_g("uMode"), 14);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MT));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 14);
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
 
@@ -1399,8 +1156,8 @@ int main() {
                 ML = glm::translate(ML, mouth + off);
                 ML = glm::rotate(ML, glm::radians(yawDeg), glm::vec3(0, 1, 0));
                 ML = glm::scale(ML, scl);
-                glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(ML));
-                glUniform1i(U_g("uMode"), 14);
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(ML));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), 14);
                 glBindVertexArray(gVAOCube);
                 glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
                 };
@@ -1418,8 +1175,8 @@ int main() {
                 MP = glm::rotate(MP, glm::radians(-18.0f), glm::vec3(1, 0, 0)); // ligera inclinación
                 MP = glm::translate(MP, glm::vec3(0.0f, 0.0f, petalR));       // empuja hacia afuera
                 MP = glm::scale(MP, glm::vec3(0.06f, 0.02f, 0.12f));          // “lámina” del pétalo
-                glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MP));
-                glUniform1i(U_g("uMode"), 15);
+                glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MP));
+                glUniform1i(glGetUniformLocation(gProg, "uMode"), 15);
                 glBindVertexArray(gVAOCube);
                 glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
             }
@@ -1428,27 +1185,11 @@ int main() {
             glm::mat4 MC(1.0f);
             MC = glm::translate(MC, mouth + glm::vec3(0.0f, petalRingY + 0.005f, 0.0f));
             MC = glm::scale(MC, glm::vec3(0.05f));
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MC));
-            glUniform1i(U_g("uMode"), 16);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MC));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), 16);
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
         }
-
-        // ---------------- Fogata (gCampPos) ----------------
-        // === NUEVO: Dibuja llamas y troncos procedurales ===
-
-        if (gFireOn) {
-            // 3 flamas (uMode=0) con ligeras variaciones
-            drawConeAt(gCampPos + glm::vec3(-0.18f, 0.00f, 0.00f),
-                glm::vec3(0.32f, 0.85f + 0.08f * sinf(currentFrame * 3.4f), 0.32f), 0, 11.0f, fireFlicker);
-
-            drawConeAt(gCampPos + glm::vec3(0.16f, 0.00f, -0.08f),
-                glm::vec3(0.26f, 0.70f + 0.07f * sinf(currentFrame * 4.1f + 1.2f), 0.26f), 0, 17.0f, fireFlicker);
-
-            drawConeAt(gCampPos + glm::vec3(0.05f, 0.00f, 0.15f),
-                glm::vec3(0.22f, 0.60f + 0.06f * sinf(currentFrame * 5.0f + 2.1f), 0.22f), 0, 23.0f, fireFlicker);
-        }
-
 
 
         // Chihuahua (voxel)
@@ -1458,8 +1199,8 @@ int main() {
             MD = glm::rotate(MD, glm::radians(yaw), glm::vec3(0, 1, 0));
             MD = glm::translate(MD, local);
             MD = glm::scale(MD, scl);
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MD));
-            glUniform1i(U_g("uMode"), mode);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MD));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
             };
@@ -1645,7 +1386,7 @@ int main() {
 
         glUseProgram(0);
         glfwSwapBuffers(window);
-        } // while
+    } // while
 
     glfwTerminate();
     return 0;
@@ -1655,22 +1396,15 @@ int main() {
 // Input
 // ===========================================================
 void DoMovement() {
-    const float SPEED_MUL = 3.0f;
-    if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP])    camera.ProcessKeyboard(FORWARD, deltaTime * SPEED_MUL);
-    if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN])  camera.ProcessKeyboard(BACKWARD, deltaTime * SPEED_MUL);
-    if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT])  camera.ProcessKeyboard(LEFT, deltaTime * SPEED_MUL);
-    if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime * SPEED_MUL);
+    if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP])    camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN])  camera.ProcessKeyboard(BACKWARD, deltaTime);
+    if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT])  camera.ProcessKeyboard(LEFT, deltaTime);
+    if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
-
-    // === NUEVO: Toggle para la fogata ===
-    if (key == GLFW_KEY_F && action == GLFW_PRESS) {
-        gFireOn = !gFireOn;
-    }
-    // ===================================
 
     if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS)   keys[key] = true;
