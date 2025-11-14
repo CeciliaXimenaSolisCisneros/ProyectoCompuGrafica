@@ -631,9 +631,9 @@ int main() {
     Model perro((char*)"Models/perro.obj");
     Model horse((char*)"Models/Juego_Pelota.obj");
     // Programa procedural + geometrías
-<<<<<<< HEAD
+    <<<<<< < HEAD
 
-    Model Calendario((char*)"Models/calendario_azteca1.obj");
+        Model Calendario((char*)"Models/calendario_azteca1.obj");
     Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
     Model Tunas((char*)"Models/Tunas.obj");
     Model Vasijas((char*)"Models/Vasijas.obj");
@@ -647,9 +647,9 @@ int main() {
 
     // -------------- Programa procedural + geometrías
 
-=======
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-    CreateProgram();
+    ====== =
+        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+        CreateProgram();
     BuildCube();
     BuildSeatPlane();
     BuildVase();
@@ -994,11 +994,11 @@ int main() {
             PielJaguar.Draw(shader);
 
             glm::mat4 model8(1.0f);
-<<<<<<< HEAD
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model8));
+            <<<<<< < HEAD
+                glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model8));
             PielesPiso.Draw(shader);
-=======
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
+            ====== =
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
             Piel2.Draw(shader);
 
             glm::mat4 model13(1.0f);
@@ -1006,18 +1006,18 @@ int main() {
             model13 = glm::scale(model13, glm::vec3(2.0f));
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
             horse.Draw(shader);
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
 
-            // Pirámide (cercana)
-            glm::mat4 model9(1.0f);
+                // Pirámide (cercana)
+                glm::mat4 model9(1.0f);
             model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
             model9 = glm::scale(model9, glm::vec3(0.5f));
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model9));
             Piramide.Draw(shader);
-<<<<<<< HEAD
+            <<<<<< < HEAD
 
 
-            glm::mat4 model13(0.8f);
+                glm::mat4 model13(0.8f);
             model13 = glm::translate(model13, glm::vec3(50.0f, 0.0f, -20.0f));
             model13 = glm::scale(model13, glm::vec3(0.5f));
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model13));
@@ -1082,93 +1082,93 @@ int main() {
 
 
 
-=======
-        }
+        ====== =
+    }
 
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+    >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         // ---------------- Cactus (enderezados con Rfix) ----------------
-        {
-            const float kScaleJitterXY = 0.10f;
-            const float kScaleJitterY = 0.25f;
-            const float kTiltMaxDeg = 2.0f;
-            const float kYawJitterDeg = 8.0f;
-            const float kYOffset = 0.02f;
-            const float kCullDistance = 220.0f;
+    {
+        const float kScaleJitterXY = 0.10f;
+        const float kScaleJitterY = 0.25f;
+        const float kTiltMaxDeg = 2.0f;
+        const float kYawJitterDeg = 8.0f;
+        const float kYOffset = 0.02f;
+        const float kCullDistance = 220.0f;
 
-            auto rand01 = [](uint32_t seed) {
-                float s = std::sin(seed * 12.9898f) * 43758.5453f;
-                return s - std::floor(s);
-                };
+        auto rand01 = [](uint32_t seed) {
+            float s = std::sin(seed * 12.9898f) * 43758.5453f;
+            return s - std::floor(s);
+            };
 
-            glm::mat4 Rfix(1.0f);
+        glm::mat4 Rfix(1.0f);
 
-            Rfix = glm::rotate(Rfix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+        Rfix = glm::rotate(Rfix, glm::radians(-90.0f), glm::vec3(1, 0, 0));
 
-            int idx = 0;
-            for (const glm::mat4& M : gcaModels) {
-                glm::vec3 posWorld = glm::vec3(M[3]);
-                if (glm::distance(posWorld, camera.GetPosition()) > kCullDistance) { ++idx; continue; }
+        int idx = 0;
+        for (const glm::mat4& M : gcaModels) {
+            glm::vec3 posWorld = glm::vec3(M[3]);
+            if (glm::distance(posWorld, camera.GetPosition()) > kCullDistance) { ++idx; continue; }
 
-                float r0 = rand01(idx * 3u + 0u);
-                float r1 = rand01(idx * 3u + 1u);
-                float r2 = rand01(idx * 3u + 2u);
+            float r0 = rand01(idx * 3u + 0u);
+            float r1 = rand01(idx * 3u + 1u);
+            float r2 = rand01(idx * 3u + 2u);
 
-                float sx = 1.0f + (r0 - 0.5f) * kScaleJitterXY * 2.0f;
-                float sy = 1.0f + (r1 - 0.5f) * kScaleJitterY * 2.0f;
-                float sz = 1.0f + (r2 - 0.5f) * kScaleJitterXY * 2.0f;
+            float sx = 1.0f + (r0 - 0.5f) * kScaleJitterXY * 2.0f;
+            float sy = 1.0f + (r1 - 0.5f) * kScaleJitterY * 2.0f;
+            float sz = 1.0f + (r2 - 0.5f) * kScaleJitterXY * 2.0f;
 
-                float rx = (r0 - 0.5f) * kTiltMaxDeg * 2.0f;
-                float rz = (r1 - 0.5f) * kTiltMaxDeg * 2.0f;
-                float ry = (r2 - 0.5f) * kYawJitterDeg * 2.0f;
+            float rx = (r0 - 0.5f) * kTiltMaxDeg * 2.0f;
+            float rz = (r1 - 0.5f) * kTiltMaxDeg * 2.0f;
+            float ry = (r2 - 0.5f) * kYawJitterDeg * 2.0f;
 
-                glm::mat4 tweak(1.0f);
-                tweak = glm::translate(tweak, glm::vec3(0.0f, kYOffset, 0.0f));
-                tweak = glm::rotate(tweak, glm::radians(rx), glm::vec3(1, 0, 0));
-                tweak = glm::rotate(tweak, glm::radians(ry), glm::vec3(0, 1, 0));
-                tweak = glm::rotate(tweak, glm::radians(rz), glm::vec3(0, 0, 1));
-                tweak = glm::scale(tweak, glm::vec3(sx, sy, sz));
+            glm::mat4 tweak(1.0f);
+            tweak = glm::translate(tweak, glm::vec3(0.0f, kYOffset, 0.0f));
+            tweak = glm::rotate(tweak, glm::radians(rx), glm::vec3(1, 0, 0));
+            tweak = glm::rotate(tweak, glm::radians(ry), glm::vec3(0, 1, 0));
+            tweak = glm::rotate(tweak, glm::radians(rz), glm::vec3(0, 0, 1));
+            tweak = glm::scale(tweak, glm::vec3(sx, sy, sz));
 
-                glm::mat4 M_final = M * Rfix * tweak;
+            glm::mat4 M_final = M * Rfix * tweak;
 
-                glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M_final));
-                ca.Draw(shader);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M_final));
+            ca.Draw(shader);
 
-                ++idx;
-            }
+            ++idx;
         }
+    }
 
         // ===== Tula (izquierda-fondo) y Pirámide del Sol (derecha-fondo) =====
-        {
-<<<<<<< HEAD
+    {
+        <<<<<< < HEAD
 
-=======
+            ====== =
             // --- TULA ---
             glm::mat4 model10(1.0f);
-            model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
-            model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
-            model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-            tula.Draw(shader);
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+        model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
+        model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
+        model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
+        glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+        tula.Draw(shader);
+        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
 
             // --- PIRÁMIDE DEL SOL ---
             glm::mat4 model11(1.0f);
-            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
-            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
-            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model11));
-            piramidesol.Draw(shader);
-        }
+        model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+        model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
+        model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+        glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model11));
+        piramidesol.Draw(shader);
+    }
 
-        // ===== Árboles =====
-        for (const glm::mat4& M : gArModels) {
-            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M));
-            ar.Draw(shader);
-        }
+    // ===== Árboles =====
+    for (const glm::mat4& M : gArModels) {
+        glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(M));
+        ar.Draw(shader);
+    }
 
 
 
-<<<<<<< HEAD
+    <<<<<<< HEAD
 
 
 
@@ -1176,40 +1176,40 @@ int main() {
 
         // -------- Procedural (mesa, silla, etc.) con gProg
 
-=======
+        ====== =
         // -------- Procedural (mesa, silla, florero + flor) con gProg
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+        >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
         glUseProgram(gProg);
-        glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniform1f(U_g("uTime"), currentFrame);
-        glUniform1f(U_g("uSun"), sun);
-        glUniform3fv(U_g("uSunDir"), 1, glm::value_ptr(sunDir));
-        // === NUEVO: Enviar luz de fogata a gProg (de nuevo) ===
-        glUniform3fv(U_g("uFirePos"), 1, glm::value_ptr(firePos));
-        glUniform3fv(U_g("uFireColor"), 1, glm::value_ptr(fireColor));
+    glUniformMatrix4fv(U_g("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniformMatrix4fv(U_g("view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniform1f(U_g("uTime"), currentFrame);
+    glUniform1f(U_g("uSun"), sun);
+    glUniform3fv(U_g("uSunDir"), 1, glm::value_ptr(sunDir));
+    // === NUEVO: Enviar luz de fogata a gProg (de nuevo) ===
+    glUniform3fv(U_g("uFirePos"), 1, glm::value_ptr(firePos));
+    glUniform3fv(U_g("uFireColor"), 1, glm::value_ptr(fireColor));
 
-        auto drawCubeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
-            glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MM));
-            glUniform1i(U_g("uMode"), mode);
-            glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
-            };
+    auto drawCubeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
+        glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
+        glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(MM));
+        glUniform1i(U_g("uMode"), mode);
+        glBindVertexArray(gVAOCube); glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+        };
 
-<<<<<<< HEAD
+    <<<<<< < HEAD
         // === NUEVO: helper para cono (fuego) ===
         auto drawConeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode, float seed, float flicker) {
-            glm::mat4 M(1.0f);
-            M = glm::translate(M, pos);
-            M = glm::scale(M, scl);
-            glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(M));
-            glUniform1i(U_g("uMode"), mode);       // 0 = fuego
-            glUniform1f(U_g("uSeed"), seed);        // semilla
-            glUniform1f(U_g("uFlicker"), flicker);  // parpadeo externo
-            glBindVertexArray(gVAOCone);
-            glDrawArrays(GL_TRIANGLES, 0, gConeVerts);
-=======
-        auto drawCubeAtRP = [&](glm::vec3 pos, glm::vec3 scl, float yawDeg, float pitchDeg, int mode = 1) {
+        glm::mat4 M(1.0f);
+        M = glm::translate(M, pos);
+        M = glm::scale(M, scl);
+        glUniformMatrix4fv(U_g("model"), 1, GL_FALSE, glm::value_ptr(M));
+        glUniform1i(U_g("uMode"), mode);       // 0 = fuego
+        glUniform1f(U_g("uSeed"), seed);        // semilla
+        glUniform1f(U_g("uFlicker"), flicker);  // parpadeo externo
+        glBindVertexArray(gVAOCone);
+        glDrawArrays(GL_TRIANGLES, 0, gConeVerts);
+        ====== =
+            auto drawCubeAtRP = [&](glm::vec3 pos, glm::vec3 scl, float yawDeg, float pitchDeg, int mode = 1) {
             glm::mat4 M(1.0f);
             M = glm::translate(M, pos);
             M = glm::rotate(M, glm::radians(yawDeg), glm::vec3(0, 1, 0));
@@ -1219,16 +1219,16 @@ int main() {
             glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-            glBindVertexArray(0);
+            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+                glBindVertexArray(0);
             };
 
 
-<<<<<<< HEAD
-=======
+        <<<<<<< HEAD
+            ====== =
 
->>>>>>> 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
-        // Mesa
+            >>>>>> > 9553164ba26e62fdc921fac898c9a9f6d1d3b6c1
+            // Mesa
         {
             float ox = topX * 0.5f - 0.09f * 0.5f;
             float oz = topZ * 0.5f - 0.09f * 0.5f;
@@ -1242,9 +1242,9 @@ int main() {
             drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
             drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
         }
-        // =======================
- // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
- // =======================
+            // =======================
+     // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
+     // =======================
         {
             glUseProgram(gProg);
 
@@ -1436,19 +1436,19 @@ int main() {
 
         // ---------------- Fogata (gCampPos) ----------------
         // === NUEVO: Dibuja llamas y troncos procedurales ===
-     
-            if (gFireOn) {
-                // 3 flamas (uMode=0) con ligeras variaciones
-                drawConeAt(gCampPos + glm::vec3(-0.18f, 0.00f, 0.00f),
-                    glm::vec3(0.32f, 0.85f + 0.08f * sinf(currentFrame * 3.4f), 0.32f), 0, 11.0f, fireFlicker);
 
-                drawConeAt(gCampPos + glm::vec3(0.16f, 0.00f, -0.08f),
-                    glm::vec3(0.26f, 0.70f + 0.07f * sinf(currentFrame * 4.1f + 1.2f), 0.26f), 0, 17.0f, fireFlicker);
+        if (gFireOn) {
+            // 3 flamas (uMode=0) con ligeras variaciones
+            drawConeAt(gCampPos + glm::vec3(-0.18f, 0.00f, 0.00f),
+                glm::vec3(0.32f, 0.85f + 0.08f * sinf(currentFrame * 3.4f), 0.32f), 0, 11.0f, fireFlicker);
 
-                drawConeAt(gCampPos + glm::vec3(0.05f, 0.00f, 0.15f),
-                    glm::vec3(0.22f, 0.60f + 0.06f * sinf(currentFrame * 5.0f + 2.1f), 0.22f), 0, 23.0f, fireFlicker);
-            }
-        
+            drawConeAt(gCampPos + glm::vec3(0.16f, 0.00f, -0.08f),
+                glm::vec3(0.26f, 0.70f + 0.07f * sinf(currentFrame * 4.1f + 1.2f), 0.26f), 0, 17.0f, fireFlicker);
+
+            drawConeAt(gCampPos + glm::vec3(0.05f, 0.00f, 0.15f),
+                glm::vec3(0.22f, 0.60f + 0.06f * sinf(currentFrame * 5.0f + 2.1f), 0.22f), 0, 23.0f, fireFlicker);
+        }
+
 
 
         // Chihuahua (voxel)
@@ -1487,7 +1487,7 @@ int main() {
             drawDog(glm::vec3(xDog, 0.0f, zDog), 10.0f, 1.0f);
         }
 
-       
+
         auto dog_drawPartR3 = [&](const glm::vec3& base, float yawDeg,
             const glm::vec3& local,
             float rotXDeg, float rotYDeg, float rotZDeg,
@@ -1605,10 +1605,10 @@ int main() {
             glUniformMatrix4fv(glGetUniformLocation(gProg, "view"), 1, GL_FALSE, glm::value_ptr(view));
             glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
 
-       
-         
-            const glm::vec3 basePos(55.0f, 0.0f, 15.0f); 
-            const float ballScale = 2.0f;          
+
+
+            const glm::vec3 basePos(55.0f, 0.0f, 15.0f);
+            const float ballScale = 2.0f;
             const float bounceHeight = 3.8f;       // Altura máxima del rebote (para que alcance el aro)
             const float bounceFrequency = 3.0f;    // Frecuencia del rebote (más alto = más rápido)
             const float horizontalSpeed = 0.8f;    // Velocidad de movimiento horizontal
@@ -1620,14 +1620,14 @@ int main() {
             // Altura vertical de la pelota: basePos.y + offset por rebote + mitad de la escala (para que su base toque el suelo)
             float yOffset = bounceFactor * bounceHeight + (ballScale * 0.5f);
 
-            
+
             float xMove = std::sin(currentFrame * horizontalSpeed * 0.7f) * maxHorizontalOffset;
             float zMove = std::cos(currentFrame * horizontalSpeed * 0.6f) * maxHorizontalOffset * 0.5f; // Un poco menos en Z
 
             // Posición final
             glm::vec3 finalPos = basePos + glm::vec3(xMove, yOffset, zMove);
 
-        
+
             glm::mat4 MBall(1.0f);
             MBall = glm::translate(MBall, finalPos);
             MBall = glm::scale(MBall, glm::vec3(ballScale));
@@ -1645,7 +1645,7 @@ int main() {
 
         glUseProgram(0);
         glfwSwapBuffers(window);
-    } // while
+        } // while
 
     glfwTerminate();
     return 0;
