@@ -1,5 +1,4 @@
 
-
 #include <iostream>
 #include <vector>
 #include <string>
@@ -547,7 +546,7 @@ static void BuildCone(int slices = 16) {
         v.push_back(apex); v.push_back(p0); v.push_back(p1);
     }
 
-  
+
 
     // Base
     for (int i = 0; i < slices; ++i) {
@@ -623,7 +622,11 @@ int main() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
+<<<<<<< HEAD
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Nenis", nullptr, nullptr);
+=======
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "nenis", nullptr, nullptr);
+>>>>>>> 812bd0b32fc059b9ac07855eba1ffebdfe898cae
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return EXIT_FAILURE; }
 
     glfwMakeContextCurrent(window);
@@ -661,7 +664,7 @@ int main() {
     Model ar((char*)"Models/arbol.obj");
     Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
     Model piramidesol((char*)"Models/PiramideSol.obj");
-    
+
     Model JuegoPelota((char*)"Models/Juego_Pelota.obj");
     Model corn((char*)"Models/10439_Corn_Field_v1_max2010_it2.obj");
     Model PielesPiso((char*)"Models/PielesPiso.obj");
@@ -886,7 +889,7 @@ int main() {
             fireColor = glm::vec3(1.0f, 0.45f, 0.1f) * fireFlicker * 2.5f; // Intensidad 2.5
         }
         glm::vec3 firePos = gCampPos + glm::vec3(0.0f, 0.2f, 0.0f);
-       
+
         // ---------------- Cielo ----------------
         {
             glUseProgram(gProg);
@@ -1041,14 +1044,14 @@ int main() {
             glm::mat4 model24(1.0f);
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model24));
             FuegoCocinaCG.Draw(shader);
-          
+
 
             glm::mat4 model25(1.0f);
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model25));
             ArbolTianguis.Draw(shader);
 
 
-  
+
         }
         // --------- Instancias aleatorias de maíz ('co') ----------
         {
@@ -1201,10 +1204,10 @@ int main() {
                 ++idx;
             }
         }
-       
 
-       
-        
+
+
+
 
         // ===== Árboles =====
         for (const glm::mat4& M : gArModels) {
@@ -1410,9 +1413,9 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, gSeatVerts);
             glBindVertexArray(0);
         }
-      
-// Carretilla simple con cubos
-// ===============================
+
+        // Carretilla simple con cubos
+        // ===============================
         {
             auto wb = [&](glm::vec3 lp, glm::vec3 sc, int mode = 1)
                 {
@@ -1801,7 +1804,7 @@ int main() {
 
         glUseProgram(0);
         glfwSwapBuffers(window);
-    } 
+    }
 
     glfwTerminate();
     return 0;
@@ -1816,7 +1819,7 @@ void DoMovement() {
     if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN])  camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT])  camera.ProcessKeyboard(LEFT, deltaTime);
     if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
-    
+
 
 
 
@@ -1826,43 +1829,43 @@ void DoMovement() {
     if (keys[GLFW_KEY_G]) {
         gWheelPos.z -= 5.0f * deltaTime;  // hacia adelante en cámara
     }
- 
+
     if (keys[GLFW_KEY_H]) {
         gWheelPos.z += 5.0f * deltaTime;  // hacia atrás
     }
 }
 
 
-    void KeyCallback(GLFWwindow * window, int key, int scancode, int action, int mode) {
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, GL_TRUE);
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
 
- 
-        if (key == GLFW_KEY_F && action == GLFW_PRESS) {
-            gFireOn = !gFireOn;
-        }
-        
 
-        if (key >= 0 && key < 1024) {
-            if (action == GLFW_PRESS)   keys[key] = true;
-            if (action == GLFW_RELEASE) keys[key] = false;
-        }
+    if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+        gFireOn = !gFireOn;
     }
 
-    void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+
+    if (key >= 0 && key < 1024) {
+        if (action == GLFW_PRESS)   keys[key] = true;
+        if (action == GLFW_RELEASE) keys[key] = false;
+    }
+}
+
+void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+{
+    if (firstMouse)
     {
-        if (firstMouse)
-        {
-            lastX = (GLfloat)xPos;
-            lastY = (GLfloat)yPos;
-            firstMouse = false;
-        }
-
-        GLfloat xOffset = (GLfloat)xPos - lastX;
-        GLfloat yOffset = lastY - (GLfloat)yPos;  
-
         lastX = (GLfloat)xPos;
         lastY = (GLfloat)yPos;
-
-        camera.ProcessMouseMovement(xOffset, yOffset);
+        firstMouse = false;
     }
+
+    GLfloat xOffset = (GLfloat)xPos - lastX;
+    GLfloat yOffset = lastY - (GLfloat)yPos;
+
+    lastX = (GLfloat)xPos;
+    lastY = (GLfloat)yPos;
+
+    camera.ProcessMouseMovement(xOffset, yOffset);
+}
