@@ -622,11 +622,8 @@ int main() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-<<<<<<< HEAD
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Nenis", nullptr, nullptr);
-=======
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "nenis", nullptr, nullptr);
->>>>>>> 812bd0b32fc059b9ac07855eba1ffebdfe898cae
+
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return EXIT_FAILURE; }
 
     glfwMakeContextCurrent(window);
