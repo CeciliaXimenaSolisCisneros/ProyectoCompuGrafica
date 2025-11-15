@@ -222,6 +222,10 @@ GLint TextureFromFile(const char *path, string directory)
 	int width, height;
 
 	unsigned char *image = SOIL_load_image(filename.c_str(), &width, &height, 0, SOIL_LOAD_RGB);
+	if (!image) {
+	    std::cerr << "Failed to load texture: " << filename << std::endl;
+	    return 0;
+	}
 
 	// Assign texture to ID
 	glBindTexture(GL_TEXTURE_2D, textureID);

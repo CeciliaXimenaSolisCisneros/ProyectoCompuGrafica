@@ -38,7 +38,7 @@ float gAxeSpeed = 2.5f;                // velocidad de movimiento
 
 
 
-GLuint gVAOSphere = 0;
+GLuint gVAOSphere = 0, gVBOSphere = 0;
 int gSphereVerts = 0;
 // ================== Prototipos ==================
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -553,6 +553,9 @@ static void BuildCone(int slices = 16) {
         glm::vec3 p1(R * cosf(a1), 0.0f, R * sinf(a1));
         v.push_back(apex); v.push_back(p0); v.push_back(p1);
     }
+
+  
+
     // Base
     for (int i = 0; i < slices; ++i) {
         float a0 = (2.0f * 3.14159265f * i) / slices;
@@ -572,6 +575,48 @@ static void BuildCone(int slices = 16) {
     glBindVertexArray(0);
     gConeVerts = (GLsizei)v.size();
 }
+static void BuildSphere(int segments = 32, int rings = 16) {
+    std::vector<glm::vec3> v;
+    v.reserve(rings * segments * 6); // Pre-alocar memoria
+
+    const float PI = 3.1415926535f;
+    float R = 0.5f; // Radio 0.5, para que el diámetro sea 1.0 (como el cubo)
+
+    for (int i = 0; i < rings; ++i) {
+        float phi0 = PI * (float)i / rings;       // Ángulo para este anillo
+        float phi1 = PI * (float)(i + 1) / rings; // Ángulo para el siguiente
+
+        float y0 = R * cosf(phi0);
+        float r0 = R * sinf(phi0);
+        float y1 = R * cosf(phi1);
+        float r1 = R * sinf(phi1);
+
+        for (int j = 0; j < segments; ++j) {
+            float theta0 = (2.0f * PI * j) / segments;       // Ángulo para este segmento
+            float theta1 = (2.0f * PI * (j + 1)) / segments; // Ángulo para el siguiente
+
+            // Calculamos los 4 vértices del "quad"
+            glm::vec3 p0(r0 * cosf(theta0), y0, r0 * sinf(theta0));
+            glm::vec3 p1(r0 * cosf(theta1), y0, r0 * sinf(theta1));
+            glm::vec3 p2(r1 * cosf(theta1), y1, r1 * sinf(theta1));
+            glm::vec3 p3(r1 * cosf(theta0), y1, r1 * sinf(theta0));
+
+            // Añadimos los dos triángulos que forman el quad
+            v.push_back(p0); v.push_back(p1); v.push_back(p2);
+            v.push_back(p0); v.push_back(p2); v.push_back(p3);
+        }
+    }
+    gSphereVerts = (GLsizei)v.size();
+    glGenVertexArrays(1, &gVAOSphere);
+    glGenBuffers(1, &gVBOSphere);
+    glBindVertexArray(gVAOSphere);
+    glBindBuffer(GL_ARRAY_BUFFER, gVBOSphere);
+    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(glm::vec3), v.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glBindVertexArray(0);
+}
+
 // ===========================================================
 // main
 // ===========================================================
@@ -624,7 +669,7 @@ int main() {
     Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
     Model piramidesol((char*)"Models/PiramideSol.obj");
     Model perro((char*)"Models/perro.obj");
-    Model horse((char*)"Models/Juego_Pelota.obj");
+    Model JuegoPelota((char*)"Models/Juego_Pelota.obj");
     Model corn((char*)"Models/10439_Corn_Field_v1_max2010_it2.obj");
     Model PielesPiso((char*)"Models/PielesPiso.obj");
     Model Piramide((char*)"Models/Piramide.obj");
@@ -633,7 +678,8 @@ int main() {
     Model Vasijas((char*)"Models/Vasijas.obj");
     Model CasaGrande((char*)"Models/CasaGrande.obj");
     Model FuegoCocinaCG((char*)"Models/FuegoCocinaCG.obj");
-
+    Model ArbolTianguis((char*)"Models/MaicesCampo.obj");
+    Model CasaAmue((char*)"Models/CocinaCasa.obj");
 
     // Programa procedural + geometrías
     CreateProgram();
@@ -642,6 +688,7 @@ int main() {
     BuildVase();
     BuildGround();
     BuildCone(14);
+    BuildSphere();
     // Texturas
     stbi_set_flip_vertically_on_load(0);
     gTexGrass = LoadTexture2D("Models/pasto.jpg", true);
@@ -972,10 +1019,8 @@ int main() {
             PielesPiso.Draw(shader);
 
             glm::mat4 model13(1.0f);
-            model13 = glm::translate(model13, glm::vec3(60.0f, 2.5f, 15.0f)); // ↑ subido en altura (Y = 3.5)
-            model13 = glm::scale(model13, glm::vec3(2.0f));
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
-            horse.Draw(shader);
+            JuegoPelota.Draw(shader);
 
             glm::mat4 model16(1.0f);
             glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model16));
@@ -1005,25 +1050,14 @@ int main() {
             FuegoCocinaCG.Draw(shader);
           
 
-            // Pirámide (cercana)
-            glm::mat4 model9(1.0f);
-            model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
-            model9 = glm::scale(model9, glm::vec3(0.5f));
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
-            Piramide.Draw(shader);
+            glm::mat4 model25(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model25));
+            ArbolTianguis.Draw(shader);
 
 
-            glm::mat4 model10(1.0f);
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-            tula.Draw(shader);
-
-            // --- PIRÁMIDE DEL SOL ---
-            glm::mat4 model11(1.0f);
-            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
-            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
-            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
-            piramidesol.Draw(shader);
+            glm::mat4 model26(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model26));
+            CasaAmue.Draw(shader);
         }
         // --------- Instancias aleatorias de maíz ('co') ----------
         {
@@ -1078,7 +1112,27 @@ int main() {
                     ++placed;
                 }
                 };
+            {
+                // Pirámide (cercana)
+                glm::mat4 model9(1.0f);
+                model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
+                model9 = glm::scale(model9, glm::vec3(0.7f));
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
+                Piramide.Draw(shader);
 
+
+                glm::mat4 model10(1.0f);
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+                tula.Draw(shader);
+
+                // --- PIRÁMIDE DEL SOL ---
+                glm::mat4 model11(1.0f);
+                model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+                model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
+                model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+                piramidesol.Draw(shader);
+            }
             gCoModels.clear();
             gCoModels.reserve(CO_COUNT);
 
@@ -1716,7 +1770,7 @@ int main() {
 
 
 
-            const glm::vec3 basePos(55.0f, 0.0f, 15.0f);
+            const glm::vec3 basePos(45.0f, 0.0f, 15.0f);
             const float ballScale = 2.0f;
             const float bounceHeight = 3.8f;       // Altura máxima del rebote (para que alcance el aro)
             const float bounceFrequency = 3.0f;    // Frecuencia del rebote (más alto = más rápido)
@@ -1743,8 +1797,8 @@ int main() {
 
             glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MBall));
 
-            glBindVertexArray(gVAOCube);
-            glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+            glBindVertexArray(gVAOSphere);
+            glDrawArrays(GL_TRIANGLES, 0, gSphereVerts);
 
             glBindVertexArray(0);
             glUseProgram(0);
