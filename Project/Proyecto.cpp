@@ -1011,6 +1011,19 @@ int main() {
             model9 = glm::scale(model9, glm::vec3(0.5f));
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
             Piramide.Draw(shader);
+
+
+            glm::mat4 model10(1.0f);
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
+            tula.Draw(shader);
+
+            // --- PIRÁMIDE DEL SOL ---
+            glm::mat4 model11(1.0f);
+            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
+            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
+            piramidesol.Draw(shader);
         }
         // --------- Instancias aleatorias de maíz ('co') ----------
         {
@@ -1143,25 +1156,10 @@ int main() {
                 ++idx;
             }
         }
+       
 
-        // ===== Tula (izquierda-fondo) y Pirámide del Sol (derecha-fondo) =====
-        {
-            // --- TULA ---
-            glm::mat4 model10(1.0f);
-            model10 = glm::translate(model10, glm::vec3(-60.0f, 0.0f, -90.0f));  // nueva posición
-            model10 = glm::rotate(model10, glm::radians(260.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // mira hacia la escena
-            model10 = glm::scale(model10, glm::vec3(1.2f));   // leve ajuste de escala
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model10));
-            tula.Draw(shader);
-
-            // --- PIRÁMIDE DEL SOL ---
-            glm::mat4 model11(1.0f);
-            model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
-            model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
-            model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
-            piramidesol.Draw(shader);
-        }
+       
+        
 
         // ===== Árboles =====
         for (const glm::mat4& M : gArModels) {
