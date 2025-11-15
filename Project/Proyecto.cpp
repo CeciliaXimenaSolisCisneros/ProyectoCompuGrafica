@@ -1,11 +1,4 @@
-//  Escena OpenGL (C++ / GLFW / GLEW / GLM / Assimp)
-//  - Mesa, silla (asiento tejido procedural)
-//  - Florero, fogata y antorchas (shader preparado, uso base)
-//  - Suelo de pasto con TEXTURA (anti-tiling) y pirámides
-//  - Cielo con estrellas, SOL/LUNA y ciclo día/noche (HQ)
-//  - Árboles y cactus: instancias aleatorias con exclusiones
-//  - Shader externo para modelos + shader embebido procedural
-// ===========================================================
+
 
 #include <iostream>
 #include <vector>
@@ -539,7 +532,7 @@ static void BuildGround(float S = 220.0f) {
     glBindVertexArray(0);
 }
 
-// === FUNCIÓN NUEVA ===
+
 static void BuildCone(int slices = 16) {
     std::vector<glm::vec3> v;
     v.reserve(slices * 6);
@@ -668,7 +661,7 @@ int main() {
     Model ar((char*)"Models/arbol.obj");
     Model ca((char*)"Models/10436_Cactus_v1_max2010_it2.obj");
     Model piramidesol((char*)"Models/PiramideSol.obj");
-    Model perro((char*)"Models/perro.obj");
+    
     Model JuegoPelota((char*)"Models/Juego_Pelota.obj");
     Model corn((char*)"Models/10439_Corn_Field_v1_max2010_it2.obj");
     Model PielesPiso((char*)"Models/PielesPiso.obj");
@@ -1055,9 +1048,7 @@ int main() {
             ArbolTianguis.Draw(shader);
 
 
-            glm::mat4 model26(1.0f);
-            glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model26));
-            CasaAmue.Draw(shader);
+  
         }
         // --------- Instancias aleatorias de maíz ('co') ----------
         {
@@ -1115,8 +1106,8 @@ int main() {
             {
                 // Pirámide (cercana)
                 glm::mat4 model9(1.0f);
-                model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
-                model9 = glm::scale(model9, glm::vec3(0.7f));
+                model9 = glm::translate(model9, glm::vec3(85.0f, 1.0f, -30.0f));
+                model9 = glm::scale(model9, glm::vec3(1.0f));
                 glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
                 Piramide.Draw(shader);
 
@@ -1127,9 +1118,9 @@ int main() {
 
                 // --- PIRÁMIDE DEL SOL ---
                 glm::mat4 model11(1.0f);
-                model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -145.0f)); // nueva posición al fondo derecho
+                model11 = glm::translate(model11, glm::vec3(+25.0f, 0.0f, -140.0f)); // nueva posición al fondo derecho
                 model11 = glm::rotate(model11, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f)); // ligera orientación
-                model11 = glm::scale(model11, glm::vec3(1.4f));   // escala acorde a la distancia
+                model11 = glm::scale(model11, glm::vec3(1.0f));   // escala acorde a la distancia
                 glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model11));
                 piramidesol.Draw(shader);
             }
@@ -1810,7 +1801,7 @@ int main() {
 
         glUseProgram(0);
         glfwSwapBuffers(window);
-    } // while
+    } 
 
     glfwTerminate();
     return 0;
@@ -1850,7 +1841,7 @@ void DoMovement() {
         if (key == GLFW_KEY_F && action == GLFW_PRESS) {
             gFireOn = !gFireOn;
         }
-        // === FIN DE LA CORRECCIÓN ===
+        
 
         if (key >= 0 && key < 1024) {
             if (action == GLFW_PRESS)   keys[key] = true;
