@@ -1,4 +1,3 @@
-// ===========================================================
 //  Escena OpenGL (C++ / GLFW / GLEW / GLM / Assimp)
 //  - Mesa, silla (asiento tejido procedural)
 //  - Florero, fogata y antorchas (shader preparado, uso base)
@@ -34,6 +33,10 @@
 #include "Camera.h"
 #include "Model.h"
 
+glm::vec3 gAxePos(10.0f, 0.0f, -5.0f);  // posición del hacha
+float gAxeSpeed = 2.5f;                // velocidad de movimiento
+
+
 
 GLuint gVAOSphere = 0;
 int gSphereVerts = 0;
@@ -60,7 +63,7 @@ GLfloat lastFrame = 0.0f;
 // ================== Posiciones base =============
 glm::vec3 gTablePos = glm::vec3(-1.8f, 0.0f, -6.0f);
 glm::vec3 gChairPos = glm::vec3(-1.2f, 0.0f, -6.2f);
-glm::vec3 gCampPos = glm::vec3(-3.2f, 0.0f, -9.8f);
+glm::vec3 gCampPos = glm::vec3(0.0f, 0.0f, 0.0f);
 
 // ================== Shader embebido (procedural)
 GLuint gProg = 0;
@@ -70,7 +73,8 @@ GLuint  gVAOCube = 0, gVBOCube = 0;   GLsizei gCubeVerts = 0;
 GLuint  gVAOSeat = 0, gVBOSeat = 0;   GLsizei gSeatVerts = 0;
 GLuint  gVAOVase = 0, gVBOVase = 0;   GLsizei gVaseVerts = 0;
 GLuint  gVAOGround = 0, gVBOGround = 0;   GLsizei gGroundVerts = 0;
-
+GLuint  gVAOCone = 0, gVBOCone = 0;   GLsizei gConeVerts = 0;
+bool    gFireOn = false;
 // ================== Texturas ====================
 GLuint  gTexGrass = 0;
 
@@ -80,6 +84,12 @@ std::vector<glm::mat4> gArModels;
 
 const int CA_COUNT = 45;
 std::vector<glm::mat4> gcaModels;
+
+const int CO_COUNT = 45;
+std::vector<glm::mat4> gCoModels;   // <- MAÍZ
+
+glm::vec3 gWheelPos(20.0f, 0.0f, -15.0f);   // NUEVA POSICIÓN LEJOS
+float gWheelYaw = 180.0f;                  // mirando hacia -X (para que avance hacia la cámara)
 
 // ===========================================================
 // Shaders procedurales (gProg)
@@ -95,6 +105,7 @@ void main(){
     gl_Position = projection * view * vec4(vPos,1.0);
 })";
 
+// === REEMPLAZAR EL kFS COMPLETO (LÍNEAS 111-372) CON ESTO ===
 static const char* kFS = R"(#version 330 core
 out vec4 FragColor;
 in vec3 vPos;
@@ -103,11 +114,15 @@ uniform float uTime;
 uniform float uSun;
 uniform vec3  uSunDir;
 uniform vec3  uCamp;      // reservado
-uniform int   uMode;      // 0=fuego 1=madera 2=cerámica 3/4/6 colores 5=tejido 10=grassProc 11=sky 12=grassTex 13=hojas 14/15/16 flor
+uniform int   uMode;      // 0=fuego 1=madera 2=cerámica 3/4/6 colores 5=tejido 10=grassProc 11=sky 12=grassTex 13=hojas 14/15/16 flor 17-21=mascara
 uniform sampler2D uTex;   // para pasto texturizado
 uniform float uTexScale;  // tiling base
 uniform float uSeed;      // semilla per-flama
 uniform float uFlicker;   // factor de parpadeo externo
+
+// === NUEVO: Uniforms para la luz de la fogata ===
+uniform vec3  uFirePos;   // Posición de la fogata
+uniform vec3  uFireColor; // Color e intensidad (será vec3(0,0,0) si está apagada)
 
 float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
 float noise(vec2 p){
@@ -132,6 +147,20 @@ float fbm_ridged(vec2 p){
     }
     return v;
 }
+
+// === NUEVO: Función de iluminación de la fogata ===
+vec3 CalcFireLight(vec3 pos, vec3 normal, vec3 albedo) {
+    if (uFireColor.r < 0.01) return vec3(0.0); // Luz apagada
+
+    vec3 lightDir = normalize(uFirePos - pos);
+    float diff = max(dot(normal, lightDir), 0.0);
+    
+    float dist = length(uFirePos - pos);
+    float atten = 1.0 / (1.0 + 0.05 * dist + 0.015 * dist * dist); 
+    
+    return albedo * uFireColor * diff * atten; 
+}
+
 
 vec3 wood(vec3 p){
     float rings = sin((p.x*9.0)+noise(p.zy*6.0)*0.8)*0.5+0.5;
@@ -163,9 +192,19 @@ float diskHalo(float mu, float rCore, float rHalo){
 }
 
 void main(){
-    if(uMode==1){ FragColor=vec4(wood(vPos),1.0); return; }
+    // === NUEVO: Calcular normal plana para objetos procedurales ===
+    vec3 flatNormal = normalize(cross(dFdx(vPos), dFdy(vPos)));
+    
+    // === MODIFICADOS: Añadida luz de fogata a todos los modos ===
 
-    // Fuego (cono con alpha + parpadeo)
+    if(uMode==1){ 
+        vec3 col = wood(vPos);
+        col += CalcFireLight(vPos, flatNormal, col);
+        FragColor=vec4(col,1.0); 
+        return; 
+    } 
+
+    // Fuego (cono con alpha + parpadeo) - No se ilumina a sí mismo
     if(uMode==0){
         float h=clamp(vPos.y,0.0,1.0);
         float r=length(vPos.xz);
@@ -173,7 +212,7 @@ void main(){
         float t=uTime*2.0 + uSeed*0.37;
         float flick = noise(vec2(r*6.0,h*8.0+t*3.5))*0.6
                     + noise(vec2(r*10.0+t*1.7,h*5.0))*0.4;
-        flick *= 0.95;
+        flick *= 0.95 * uFlicker; // Usamos flicker externo
         vec3 c1=vec3(1.0,0.25,0.02), c2=vec3(1.0,0.55,0.05),
              c3=vec3(1.0,0.85,0.25), c4=vec3(1.0,0.95,0.75);
         float k=clamp(h*1.2+flick*0.2,0.0,1.0);
@@ -195,6 +234,7 @@ void main(){
         vec3 jute=vec3(0.90,0.86,0.72), navy=vec3(0.05,0.10,0.20);
         vec3 base=mix(navy,jute,kk);
         base+=0.08*noise(uv*2.5);
+        base += CalcFireLight(vPos, flatNormal, base);
         FragColor=vec4(base,1.0); return;
     }
 
@@ -206,13 +246,14 @@ void main(){
         vec3 col=mix(terracotta,crema,b*0.25);
         if(abs(vPos.y-0.15)<0.06) col=mix(col,vec3(0.14,0.02,0.02),0.85);
         if(abs(vPos.y-0.00)<0.06) col=mix(col,vec3(0.14,0.02,0.02),0.85);
+        col += CalcFireLight(vPos, flatNormal, col);
         FragColor=vec4(col,1.0); return;
     }
 
     // Colores varios
-    if(uMode==3){ FragColor=vec4(0.84,0.72,0.54,1.0); return; }
-    if(uMode==4){ FragColor=vec4(0.10,0.07,0.06,1.0); return; }
-    if(uMode==6){ FragColor=vec4(0.88,0.42,0.55,1.0); return; }
+    if(uMode==3){ vec3 col=vec3(0.84,0.72,0.54); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
+    if(uMode==4){ vec3 col=vec3(0.10,0.07,0.06); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
+    if(uMode==6){ vec3 col=vec3(0.88,0.42,0.55); col+=CalcFireLight(vPos,flatNormal,col); FragColor=vec4(col,1.0); return; }
 
     // Pasto procedural simple
     if(uMode==10){
@@ -227,30 +268,29 @@ void main(){
         float lambert = clamp(dot(normalize(vec3(0,1,0)), normalize(uSunDir)), 0.0, 1.0);
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float light   = 0.40 + lambert * mix(0.55, 1.00, sunVis);
-        col *= light;
+        
+        vec3 fireLight = CalcFireLight(vPos, vec3(0,1,0), col);
+        col = col * light + fireLight; // Sol multiplica, fogata suma
+
         FragColor = vec4(col, 1.0); return;
     }
 
-    // Cielo + horizonte
+    // Cielo + horizonte (no se ilumina por fogata)
     if(uMode==11){
         vec3 dir = normalize(vPos);
         float nightFactor; vec3 base = skyColor(dir, uSun, nightFactor);
-
         vec2 uvCloud = dir.xz * 0.7 + vec2(0.06*uTime, 0.0);
         float c  = fbm(uvCloud*1.1);
         float cloud = smoothstep(0.52, 0.70, c);
         vec3 cloudCol = mix(vec3(0.88), vec3(1.00), 0.5+0.5*clamp(uSun,0.0,1.0));
         base = mix(base, cloudCol, cloud * (0.30 + 0.40*clamp(uSun,0.0,1.0)));
-
         float muSun  = dot(dir, normalize(uSunDir));
         float sunDisc= diskHalo(muSun, 0.020, 0.090);
         vec3  sunCol = vec3(1.0, 0.96, 0.85) * sunDisc * clamp(uSun*1.2, 0.0, 1.2);
-
         vec3  moonDir = -normalize(uSunDir);
         float muMoon  = dot(dir, moonDir);
         float moonDisc= diskHalo(muMoon, 0.016, 0.060);
         vec3  moonCol = vec3(0.85, 0.88, 1.0) * moonDisc * (1.0-clamp(uSun,0.0,1.0)) * 0.75;
-
         const float PI = 3.14159265359;
         vec2 suv; suv.x = atan(dir.z, dir.x)/(2.0*PI)+0.5; suv.y = asin(clamp(dir.y,-1.0,1.0))/PI+0.5;
         float stars = 0.0;
@@ -262,7 +302,6 @@ void main(){
         float tw = 0.6 + 0.4*sin(uTime*5.0+suv.x*55.0+suv.y*37.0);
         float starVis = (1.0-clamp(uSun,0.0,1.0)) * (0.25 + 0.75*smoothstep(0.12,0.0,dir.y));
         vec3 starCol = vec3(1.0)*clamp(stars,0.0,4.0)*starVis*tw;
-
         float az = atan(dir.z, dir.x);
         float wind = 0.025*uTime;
         float ridge1 = fbm_ridged(vec2(az*1.65 + wind, 0.0));
@@ -271,7 +310,6 @@ void main(){
         float elev = mix(-0.10, 0.18, ridge);
         float m = 1.0 - smoothstep(elev-0.008, elev+0.008, dir.y);
         m *= (1.0 - smoothstep(0.10, 0.35, dir.y));
-
         vec3 mountDay   = vec3(0.28,0.30,0.34);
         vec3 mountDusk  = vec3(0.20,0.18,0.22);
         vec3 mountNight = vec3(0.08,0.09,0.12);
@@ -286,7 +324,6 @@ void main(){
         vec2 uv0 = vPos.xz * uTexScale;
         vec2 warp = vec2(fbm(uv0*0.45), fbm(uv0*0.45 + 37.3));
         uv0 += (warp-0.5)*0.18;
-
         vec2 cell = floor(uv0);
         vec2 f    = fract(uv0);
         float r   = hash(cell*0.721);
@@ -294,7 +331,6 @@ void main(){
         mat2  R   = mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
         vec2  jitter = vec2(hash(cell+41.0), hash(cell+173.0)) - 0.5;
         vec2  uvA = (R*(f-0.5) + 0.5) + jitter*0.18 + cell;
-
         vec2 uv1 = vPos.xz * (uTexScale*0.57);
         vec2 cell1 = floor(uv1);
         float r1   = hash(cell1*1.937);
@@ -303,35 +339,33 @@ void main(){
         vec2  f1   = fract(uv1);
         vec2  jitter1 = vec2(hash(cell1+7.0), hash(cell1+89.0)) - 0.5;
         vec2  uvB = (R1*(f1-0.5) + 0.5) + jitter1*0.18 + cell1;
-
         vec3 texA = texture(uTex, uvA).rgb;
         vec3 texB = texture(uTex, uvB).rgb;
-
         float mask  = smoothstep(0.40, 0.70, fbm(vPos.xz*0.07 + 13.1));
         vec3  albedo = mix(texA, texB, mask);
-
         float micro = fbm(vPos.xz*1.2);
         albedo *= mix(0.96, 1.06, micro);
-
         float lambert = clamp(dot(vec3(0,1,0), normalize(uSunDir)), 0.0, 1.0);
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float ambient = mix(0.40, 0.62, sunVis);
         float light   = ambient + lambert * mix(0.55, 1.00, sunVis);
 
-        FragColor = vec4(albedo * light, 1.0);
+        vec3 fireLight = CalcFireLight(vPos, vec3(0,1,0), albedo);
+        FragColor = vec4(albedo * light + fireLight, 1.0);
         return;
     }
-   if(uMode==17){ FragColor = vec4(0.30, 0.82, 0.70, 1.0); return; } // jade claro
-if(uMode==18){ FragColor = vec4(0.12, 0.40, 0.33, 1.0); return; } // jade oscuro
-if(uMode==19){ FragColor = vec4(0.83, 0.35, 0.25, 1.0); return; } // rojo coral
-if(uMode==20){ FragColor = vec4(0.95, 0.95, 0.90, 1.0); return; } // blanco ojos
-if(uMode==21){ FragColor = vec4(0.05, 0.05, 0.05, 1.0); return; } // negro detalles
-
+    
+    // Máscara de Jade
+    if(uMode==17){ vec3 col=vec3(0.30, 0.82, 0.70); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // jade claro
+    if(uMode==18){ vec3 col=vec3(0.12, 0.40, 0.33); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // jade oscuro
+    if(uMode==19){ vec3 col=vec3(0.83, 0.35, 0.25); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // rojo coral
+    if(uMode==20){ vec3 col=vec3(0.95, 0.95, 0.90); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // blanco ojos
+    if(uMode==21){ vec3 col=vec3(0.05, 0.05, 0.05); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // negro detalles
 
     // Flor (tallo/hojas, pétalos, centro)
-    if(uMode==14){ FragColor = vec4(0.10, 0.45, 0.14, 1.0); return; } // tallo/hojas
-    if(uMode==15){ FragColor = vec4(0.95, 0.60, 0.75, 1.0); return; } // pétalo rosado
-    if(uMode==16){ FragColor = vec4(0.98, 0.85, 0.25, 1.0); return; } // centro amarillo
+    if(uMode==14){ vec3 col=vec3(0.10, 0.45, 0.14); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // tallo/hojas
+    if(uMode==15){ vec3 col=vec3(0.95, 0.60, 0.75); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // pétalo rosado
+    if(uMode==16){ vec3 col=vec3(0.98, 0.85, 0.25); col+=CalcFireLight(vPos,flatNormal,col); FragColor = vec4(col, 1.0); return; } // centro amarillo
 
     // Hojas de árbol (canopy)
     if(uMode==13){
@@ -343,7 +377,10 @@ if(uMode==21){ FragColor = vec4(0.05, 0.05, 0.05, 1.0); return; } // negro detal
         float sunVis  = clamp(uSun, 0.0, 1.0);
         float ambient = mix(0.35, 0.55, sunVis);
         float light   = ambient + lambert * mix(0.45, 0.95, sunVis);
-        col *= light * (0.92 + 0.08*noise(vPos.xz*3.7));
+        
+        vec3 fireLight = CalcFireLight(vPos, flatNormal, col);
+        col = col * light * (0.92 + 0.08*noise(vPos.xz*3.7)) + fireLight;
+        
         FragColor = vec4(col, 1.0);
         return;
     }
@@ -502,6 +539,39 @@ static void BuildGround(float S = 220.0f) {
     glBindVertexArray(0);
 }
 
+// === FUNCIÓN NUEVA ===
+static void BuildCone(int slices = 16) {
+    std::vector<glm::vec3> v;
+    v.reserve(slices * 6);
+    const float R = 0.5f, H = 1.0f;
+    // Lateral
+    for (int i = 0; i < slices; ++i) {
+        float a0 = (2.0f * 3.14159265f * i) / slices;
+        float a1 = (2.0f * 3.14159265f * (i + 1)) / slices;
+        glm::vec3 apex(0.0f, H, 0.0f);
+        glm::vec3 p0(R * cosf(a0), 0.0f, R * sinf(a0));
+        glm::vec3 p1(R * cosf(a1), 0.0f, R * sinf(a1));
+        v.push_back(apex); v.push_back(p0); v.push_back(p1);
+    }
+    // Base
+    for (int i = 0; i < slices; ++i) {
+        float a0 = (2.0f * 3.14159265f * i) / slices;
+        float a1 = (2.0f * 3.14159265f * (i + 1)) / slices;
+        glm::vec3 c(0.0f, 0.0f, 0.0f);
+        glm::vec3 p0(R * cosf(a0), 0.0f, R * sinf(a0));
+        glm::vec3 p1(R * cosf(a1), 0.0f, R * sinf(a1));
+        v.push_back(c); v.push_back(p1); v.push_back(p0);
+    }
+    glGenVertexArrays(1, &gVAOCone);
+    glGenBuffers(1, &gVBOCone);
+    glBindVertexArray(gVAOCone);
+    glBindBuffer(GL_ARRAY_BUFFER, gVBOCone);
+    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(glm::vec3), v.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glBindVertexArray(0);
+    gConeVerts = (GLsizei)v.size();
+}
 // ===========================================================
 // main
 // ===========================================================
@@ -545,8 +615,8 @@ int main() {
     Model Jarrones((char*)"Models/Jarrones.obj");
     Model Tendedero((char*)"Models/Tendedero.obj");
     Model PielJaguar((char*)"Models/PielJaguar.obj");
-    Model Piel2((char*)"Models/Piel2.obj");
-    Model Piramide((char*)"Models/Piramide.obj");
+
+
     Model TechosChozas((char*)"Models/TechosChozas.obj");
     Model ParedesChozas((char*)"Models/ParedesChozas.obj");
     Model tula((char*)"Models/tula.obj");
@@ -555,13 +625,23 @@ int main() {
     Model piramidesol((char*)"Models/PiramideSol.obj");
     Model perro((char*)"Models/perro.obj");
     Model horse((char*)"Models/Juego_Pelota.obj");
+    Model corn((char*)"Models/10439_Corn_Field_v1_max2010_it2.obj");
+    Model PielesPiso((char*)"Models/PielesPiso.obj");
+    Model Piramide((char*)"Models/Piramide.obj");
+    Model VasijasYMolcajete((char*)"Models/VasijasYMolcajete.obj");
+    Model Tunas((char*)"Models/Tunas.obj");
+    Model Vasijas((char*)"Models/Vasijas.obj");
+    Model CasaGrande((char*)"Models/CasaGrande.obj");
+    Model FuegoCocinaCG((char*)"Models/FuegoCocinaCG.obj");
+
+
     // Programa procedural + geometrías
     CreateProgram();
     BuildCube();
     BuildSeatPlane();
     BuildVase();
     BuildGround();
-
+    BuildCone(14);
     // Texturas
     stbi_set_flip_vertically_on_load(0);
     gTexGrass = LoadTexture2D("Models/pasto.jpg", true);
@@ -758,6 +838,15 @@ int main() {
         glm::vec3 sunDir = glm::normalize(glm::vec3(ce * cosf(az), se, ce * sinf(az)));
         float sun = 0.5f + 0.5f * se;
 
+        // === para fuego ===
+        glm::vec3 fireColor(0.0f);
+        float fireFlicker = 1.0f;
+        if (gFireOn) {
+            fireFlicker = 0.85f + 0.25f * sinf(currentFrame * 7.0f);
+            fireColor = glm::vec3(1.0f, 0.45f, 0.1f) * fireFlicker * 2.5f; // Intensidad 2.5
+        }
+        glm::vec3 firePos = gCampPos + glm::vec3(0.0f, 0.2f, 0.0f);
+       
         // ---------------- Cielo ----------------
         {
             glUseProgram(gProg);
@@ -767,6 +856,8 @@ int main() {
             glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
             glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
             glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
+            glUniform3fv(glGetUniformLocation(gProg, "uFirePos"), 1, glm::value_ptr(firePos));
+            glUniform3fv(glGetUniformLocation(gProg, "uFireColor"), 1, glm::value_ptr(fireColor));
             glUniform1i(glGetUniformLocation(gProg, "uMode"), 11);
 
             glm::mat4 MSky(1.0f); MSky = glm::scale(MSky, glm::vec3(500.0f));
@@ -789,6 +880,8 @@ int main() {
         glUniform1f(glGetUniformLocation(gProg, "uTime"), currentFrame);
         glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
         glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
+        glUniform3fv(glGetUniformLocation(gProg, "uFirePos"), 1, glm::value_ptr(firePos));
+        glUniform3fv(glGetUniformLocation(gProg, "uFireColor"), 1, glm::value_ptr(fireColor));
         glUniform1i(glGetUniformLocation(gProg, "uMode"), 12);
         glUniform1f(glGetUniformLocation(gProg, "uTexScale"), 0.28f);
 
@@ -829,6 +922,21 @@ int main() {
         glUniform3f(U("light.diffuse"), dif, dif, dif);
         glUniform3f(U("light.specular"), spe, spe, spe);
 
+        // --- Luz de Fogata (Punto 0) ---
+        glUniform3fv(U("pointLights[0].position"), 1, glm::value_ptr(firePos));
+        glUniform3fv(U("pointLights[0].diffuse"), 1, glm::value_ptr(fireColor));
+        glUniform3f(U("pointLights[0].ambient"), fireColor.r * 0.05f, fireColor.g * 0.05f, fireColor.b * 0.05f);
+        glUniform3f(U("pointLights[0].specular"), 1.0f, 1.0f, 1.0f);
+        glUniform1f(U("pointLights[0].constant"), 1.0f);
+        glUniform1f(U("pointLights[0].linear"), 0.05f);      // Atenuación para modelos
+        glUniform1f(U("pointLights[0].quadratic"), 0.015f);  // Atenuación para modelos
+
+        // Apagar las otras 3 luces (si el shader las soporta)
+        glUniform3f(U("pointLights[1].diffuse"), 0.0f, 0.0f, 0.0f);
+        glUniform3f(U("pointLights[2].diffuse"), 0.0f, 0.0f, 0.0f);
+        glUniform3f(U("pointLights[3].diffuse"), 0.0f, 0.0f, 0.0f);
+        // === FIN DEL BLOQUE NUEVO ===
+
         // Dibujo de props del tianguis
         {
             glm::mat4 model(1.0f);
@@ -861,7 +969,7 @@ int main() {
 
             glm::mat4 model8(1.0f);
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model8));
-            Piel2.Draw(shader);
+            PielesPiso.Draw(shader);
 
             glm::mat4 model13(1.0f);
             model13 = glm::translate(model13, glm::vec3(60.0f, 2.5f, 15.0f)); // ↑ subido en altura (Y = 3.5)
@@ -869,12 +977,120 @@ int main() {
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model13));
             horse.Draw(shader);
 
+            glm::mat4 model16(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model16));
+            ParedesChozas.Draw(shader);
+            glm::mat4 model17(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model17));
+            TechosChozas.Draw(shader);
+
+            glm::mat4 model18(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model18));
+            VasijasYMolcajete.Draw(shader);
+
+            glm::mat4 model19(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model19));
+            Tunas.Draw(shader);
+
+            glm::mat4 model20(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model20));
+            Vasijas.Draw(shader);
+
+            glm::mat4 model23(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model23));
+            CasaGrande.Draw(shader);
+
+            glm::mat4 model24(1.0f);
+            glUniformMatrix4fv(U("model"), 1, GL_FALSE, glm::value_ptr(model24));
+            FuegoCocinaCG.Draw(shader);
+          
+
             // Pirámide (cercana)
             glm::mat4 model9(1.0f);
             model9 = glm::translate(model9, glm::vec3(90.0f, 1.0f, -30.0f));
             model9 = glm::scale(model9, glm::vec3(0.5f));
             glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"), 1, GL_FALSE, glm::value_ptr(model9));
             Piramide.Draw(shader);
+        }
+        // --------- Instancias aleatorias de maíz ('co') ----------
+        {
+            const glm::vec2 X_RANGE_L(-40.0f, 0.0f);
+            const glm::vec2 Z_RANGE_L(-180.0f, -120.0f);
+
+            const glm::vec2 X_RANGE_R(0.0f, 40.0f);
+            const glm::vec2 Z_RANGE_R(-180.0f, -120.0f);
+
+            std::vector<Exclusion> ex = {
+                { glm::vec2(gTablePos.x,  gTablePos.z), 18.0f },
+                { glm::vec2(gCampPos.x,   gCampPos.z), 14.0f },
+                { glm::vec2(-60.0f,       -95.0f),     22.0f }, // Tula
+                { glm::vec2(25.0f,       -145.0f),     28.0f }, // Pirámide del Sol
+                { glm::vec2(0.0f,          0.0f),      40.0f }  // área central
+            };
+
+            const float MIN_DIST = 3.5f;
+            const float MIN_DIST2 = MIN_DIST * MIN_DIST;
+            const int   MAX_TRIES = 200;
+            const float Y_ROT_MIN = 0.0f, Y_ROT_MAX = 360.0f;
+            const float S_MIN = 0.06f, S_MAX = 0.10f;
+
+            std::mt19937 rng(20251109);
+            std::uniform_real_distribution<float> distYaw(Y_ROT_MIN, Y_ROT_MAX);
+            std::uniform_real_distribution<float> distS(S_MIN, S_MAX);
+
+            auto fillBeltCorn = [&](glm::vec2 XR, glm::vec2 ZR, int target) {
+                std::uniform_real_distribution<float> distX(XR.x, XR.y);
+                std::uniform_real_distribution<float> distZ(ZR.x, ZR.y);
+
+                std::vector<glm::vec2> usedXZ;
+                usedXZ.reserve(target);
+                int placed = 0, tries = 0;
+
+                while (tries < MAX_TRIES && placed < target) {
+                    ++tries;
+                    glm::vec2 p(distX(rng), distZ(rng));
+                    if (!OutsideExclusions(p, ex)) continue;
+                    if (!IsFarEnough(p, usedXZ, MIN_DIST2)) continue;
+
+                    usedXZ.push_back(p);
+                    float yaw = distYaw(rng);
+                    float s = distS(rng);
+
+                    glm::mat4 M(1.0f);
+                    M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+                    M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0));
+                    M = glm::scale(M, glm::vec3(s));
+
+                    gCoModels.push_back(M);
+                    ++placed;
+                }
+                };
+
+            gCoModels.clear();
+            gCoModels.reserve(CO_COUNT);
+
+            int leftCount = CO_COUNT / 2;
+            int rightCount = CO_COUNT - leftCount;
+
+            fillBeltCorn(X_RANGE_L, Z_RANGE_L, leftCount);
+            fillBeltCorn(X_RANGE_R, Z_RANGE_R, rightCount);
+
+            // Relleno (por si faltan algunos)
+            std::uniform_real_distribution<float> distX_L(X_RANGE_L.x, X_RANGE_L.y);
+            std::uniform_real_distribution<float> distZ_L(Z_RANGE_L.x, Z_RANGE_L.y);
+            while ((int)gCoModels.size() < CO_COUNT) {
+                glm::vec2 p(distX_L(rng), distZ_L(rng));
+                if (!OutsideExclusions(p, ex)) continue;
+
+                float yaw = distYaw(rng);
+                float s = distS(rng);
+
+                glm::mat4 M(1.0f);
+                M = glm::translate(M, glm::vec3(p.x, 0.0f, p.y));
+                M = glm::rotate(M, glm::radians(yaw), glm::vec3(0, 1, 0));
+                M = glm::scale(M, glm::vec3(s));
+                gCoModels.push_back(M);
+            }
         }
 
         // ---------------- Cactus (enderezados con Rfix) ----------------
@@ -953,6 +1169,19 @@ int main() {
             ar.Draw(shader);
         }
 
+        // ===== Campo de maíz =====
+        {
+            glm::mat4 RfixCorn(1.0f);
+            RfixCorn = glm::rotate(RfixCorn, glm::radians(-90.0f), glm::vec3(1, 0, 0)); // levantarlo
+
+            for (const glm::mat4& M : gCoModels) {
+                glm::mat4 Mfinal = M * RfixCorn;
+                glUniformMatrix4fv(glGetUniformLocation(shader.Program, "model"),
+                    1, GL_FALSE, glm::value_ptr(Mfinal));
+                corn.Draw(shader);
+            }
+        }
+
 
 
         // -------- Procedural (mesa, silla, florero + flor) con gProg
@@ -963,6 +1192,8 @@ int main() {
         glUniform1f(glGetUniformLocation(gProg, "uSun"), sun);
         glUniform3fv(glGetUniformLocation(gProg, "uSunDir"), 1, glm::value_ptr(sunDir));
 
+        glUniform3fv(glGetUniformLocation(gProg, "uFirePos"), 1, glm::value_ptr(firePos));
+        glUniform3fv(glGetUniformLocation(gProg, "uFireColor"), 1, glm::value_ptr(fireColor));
         auto drawCubeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode = 1) {
             glm::mat4 MM(1.0f); MM = glm::translate(MM, pos); MM = glm::scale(MM, scl);
             glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(MM));
@@ -982,7 +1213,19 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
             glBindVertexArray(0);
             };
-
+        auto drawConeAt = [&](glm::vec3 pos, glm::vec3 scl, int mode, float seed, float flicker) {
+            glm::mat4 M(1.0f);
+            M = glm::translate(M, pos);
+            M = glm::scale(M, scl);
+            glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(M));
+            glUniform1i(glGetUniformLocation(gProg, "uMode"), mode);       // 0 = fuego
+            glUniform1f(glGetUniformLocation(gProg, "uSeed"), seed);        // semilla
+            glUniform1f(glGetUniformLocation(gProg, "uFlicker"), flicker);  // parpadeo externo
+            glBindVertexArray(gVAOCone);
+            glDrawArrays(GL_TRIANGLES, 0, gConeVerts);
+            glBindVertexArray(0);
+            };
+        // ===============================
 
 
         // Mesa
@@ -998,6 +1241,19 @@ int main() {
             drawCubeAt(gTablePos + glm::vec3(0.0f, railH, -oz), glm::vec3(topX - 0.09f * 1.4f, 0.06f, 0.09f), 1);
             drawCubeAt(gTablePos + glm::vec3(+ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
             drawCubeAt(gTablePos + glm::vec3(-ox, railH, 0.0f), glm::vec3(0.09f, 0.06f, topZ - 0.09f * 1.4f), 1);
+        }
+        {
+            if (gFireOn) {
+                // 3 flamas (uMode=0) con ligeras variaciones
+                drawConeAt(gCampPos + glm::vec3(-0.18f, 0.00f, 0.00f),
+                    glm::vec3(0.32f, 0.85f + 0.08f * sinf(currentFrame * 3.4f), 0.32f), 0, 11.0f, fireFlicker);
+
+                drawConeAt(gCampPos + glm::vec3(0.16f, 0.00f, -0.08f),
+                    glm::vec3(0.26f, 0.70f + 0.07f * sinf(currentFrame * 4.1f + 1.2f), 0.26f), 0, 17.0f, fireFlicker);
+
+                drawConeAt(gCampPos + glm::vec3(0.05f, 0.00f, 0.15f),
+                    glm::vec3(0.22f, 0.60f + 0.06f * sinf(currentFrame * 5.0f + 2.1f), 0.22f), 0, 23.0f, fireFlicker);
+            }
         }
         // =======================
  // MÁSCARA DE JADE MOSAICO (colores sólidos, sin sombras)
@@ -1111,6 +1367,114 @@ int main() {
             glDrawArrays(GL_TRIANGLES, 0, gSeatVerts);
             glBindVertexArray(0);
         }
+      
+// Carretilla simple con cubos
+// ===============================
+        {
+            auto wb = [&](glm::vec3 lp, glm::vec3 sc, int mode = 1)
+                {
+                    drawCubeAt(gWheelPos + lp, sc, mode);
+                };
+
+            float bodyW = 1.6f;   // ancho
+            float bodyH = 0.40f;  // alto caja
+            float bodyL = 2.3f;   // largo
+
+            // ---------------------------
+            // Caja
+            // ---------------------------
+            wb(glm::vec3(0.0f, bodyH * 0.5f + 0.4f, 0.0f),
+                glm::vec3(bodyW, bodyH, bodyL), 1);
+
+            // Bordes laterales
+            float edgeH = 0.25f;
+            wb(glm::vec3(+bodyW * 0.5f, 0.4f + bodyH + edgeH * 0.5f, 0.0f),
+                glm::vec3(0.10f, edgeH, bodyL), 1);
+
+            wb(glm::vec3(-bodyW * 0.5f, 0.4f + bodyH + edgeH * 0.5f, 0.0f),
+                glm::vec3(0.10f, edgeH, bodyL), 1);
+
+            // ---------------------------
+            // Manubrios
+            // ---------------------------
+            wb(glm::vec3(+bodyW * 0.45f, 0.4f + bodyH + 0.25f, bodyL * 0.60f),
+                glm::vec3(0.10f, 0.10f, 1.6f), 1);
+
+            wb(glm::vec3(-bodyW * 0.45f, 0.4f + bodyH + 0.25f, bodyL * 0.60f),
+                glm::vec3(0.10f, 0.10f, 1.6f), 1);
+
+            // ---------------------------
+            // Piernas de soporte
+            // ---------------------------
+            wb(glm::vec3(+0.55f, 0.2f, -0.90f),
+                glm::vec3(0.15f, 0.40f, 0.15f), 1);
+
+            wb(glm::vec3(-0.55f, 0.2f, -0.90f),
+                glm::vec3(0.15f, 0.40f, 0.15f), 1);
+
+            // ---------------------------
+            // Rueda (cilindro simulado con cubo ancho)
+            // ---------------------------
+            wb(glm::vec3(0.0f, 0.35f, -bodyL * 0.5f),
+                glm::vec3(0.80f, 0.80f, 0.20f), 3);
+        }
+
+        // ========================================
+// Hacha pequeña pegando una piedra
+// ========================================
+        {
+            // Pivot: punta del mango en el piso
+            glm::vec3 pivot = gAxePos;   // por ejemplo glm::vec3(10.0f, 0.0f, -5.0f);
+
+            // ---------- Animación del golpe ----------
+            float t = (float)glfwGetTime();
+            float s = (sin(t * 3.0f) + 1.0f) * 0.5f;   // 0..1
+            float angDeg = -20.0f - 30.0f * s;         // de -20° a -50° (menos exagerado)
+            float angRad = glm::radians(angDeg);
+
+            auto part = [&](glm::vec3 local, glm::vec3 scl, int mode)
+                {
+                    glm::mat4 M(1.0f);
+
+                    // pivot en el piso
+                    M = glm::translate(M, pivot);
+                    // rotación hacia adelante alrededor de X
+                    M = glm::rotate(M, angRad, glm::vec3(1.0f, 0.0f, 0.0f));
+                    // posición local de la pieza (desde el pivot)
+                    M = glm::translate(M, local);
+                    M = glm::scale(M, scl);
+
+                    glUniformMatrix4fv(glGetUniformLocation(gProg, "model"), 1, GL_FALSE, glm::value_ptr(M));
+                    glUniform1i(glGetUniformLocation(gProg, "uMode"), mode); // 1=madera, 2=piedra, 3=cuerda
+                    glBindVertexArray(gVAOCube);
+                    glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
+                };
+
+            // ---------- Tamaños más pequeños ----------
+            float handleLen = 1.6f;          // antes era más largo
+            float zStone = 0.55f;         // posición de la piedra en Z
+            float zBlade = 0.55f;         // donde cae el filo
+
+            // MANGO
+            part(glm::vec3(0.0f, handleLen * 0.5f, 0.0f),
+                glm::vec3(0.10f, handleLen, 0.10f), 1);
+
+            // CABEZA (bloque de piedra)
+            part(glm::vec3(0.0f, handleLen + 0.15f, 0.30f),
+                glm::vec3(0.45f, 0.28f, 0.40f), 2);
+
+            // FILO (un poco más salido, alineado con la piedra)
+            part(glm::vec3(0.0f, handleLen + 0.15f, zBlade),
+                glm::vec3(0.55f, 0.24f, 0.12f), 2);
+
+            // CUERDA alrededor
+            part(glm::vec3(0.0f, handleLen + 0.05f, 0.20f),
+                glm::vec3(0.22f, 0.20f, 0.22f), 3);
+            part(glm::vec3(0.0f, handleLen + 0.10f, 0.10f),
+                glm::vec3(0.26f, 0.18f, 0.26f), 3);
+
+        }
+
 
         // Florero
         {
@@ -1150,6 +1514,8 @@ int main() {
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
 
+
+
             // ---- Hojas (uMode=14, verdes) — a media altura del tallo
             auto leaf = [&](glm::vec3 off, glm::vec3 scl, float yawDeg) {
                 glm::mat4 ML(1.0f);
@@ -1181,6 +1547,8 @@ int main() {
                 glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
             }
 
+
+
             // ---- Centro (uMode=16, amarillo)
             glm::mat4 MC(1.0f);
             MC = glm::translate(MC, mouth + glm::vec3(0.0f, petalRingY + 0.005f, 0.0f));
@@ -1190,6 +1558,8 @@ int main() {
             glBindVertexArray(gVAOCube);
             glDrawArrays(GL_TRIANGLES, 0, gCubeVerts);
         }
+
+
 
 
         // Chihuahua (voxel)
@@ -1384,6 +1754,8 @@ int main() {
 
 
 
+
+
         glUseProgram(0);
         glfwSwapBuffers(window);
     } // while
@@ -1396,27 +1768,58 @@ int main() {
 // Input
 // ===========================================================
 void DoMovement() {
+    // Cámara
     if (keys[GLFW_KEY_W] || keys[GLFW_KEY_UP])    camera.ProcessKeyboard(FORWARD, deltaTime);
     if (keys[GLFW_KEY_S] || keys[GLFW_KEY_DOWN])  camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (keys[GLFW_KEY_A] || keys[GLFW_KEY_LEFT])  camera.ProcessKeyboard(LEFT, deltaTime);
     if (keys[GLFW_KEY_D] || keys[GLFW_KEY_RIGHT]) camera.ProcessKeyboard(RIGHT, deltaTime);
-}
+    
 
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
 
-    if (key >= 0 && key < 1024) {
-        if (action == GLFW_PRESS)   keys[key] = true;
-        if (action == GLFW_RELEASE) keys[key] = false;
+
+    // Carretilla (G = adelante, H = atrás)
+    float vel = 5.0f * deltaTime;
+
+    if (keys[GLFW_KEY_G]) {
+        gWheelPos.z -= 5.0f * deltaTime;  // hacia adelante en cámara
+    }
+ 
+    if (keys[GLFW_KEY_H]) {
+        gWheelPos.z += 5.0f * deltaTime;  // hacia atrás
     }
 }
 
-void MouseCallback(GLFWwindow*, double xPos, double yPos) {
-    if (firstMouse) { lastX = (GLfloat)xPos; lastY = (GLfloat)yPos; firstMouse = false; }
-    GLfloat xOffset = (GLfloat)xPos - lastX;
-    GLfloat yOffset = lastY - (GLfloat)yPos;
-    lastX = (GLfloat)xPos;
-    lastY = (GLfloat)yPos;
-    camera.ProcessMouseMovement(xOffset, yOffset);
-}
+
+    void KeyCallback(GLFWwindow * window, int key, int scancode, int action, int mode) {
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, GL_TRUE);
+
+ 
+        if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+            gFireOn = !gFireOn;
+        }
+        // === FIN DE LA CORRECCIÓN ===
+
+        if (key >= 0 && key < 1024) {
+            if (action == GLFW_PRESS)   keys[key] = true;
+            if (action == GLFW_RELEASE) keys[key] = false;
+        }
+    }
+
+    void MouseCallback(GLFWwindow* window, double xPos, double yPos)
+    {
+        if (firstMouse)
+        {
+            lastX = (GLfloat)xPos;
+            lastY = (GLfloat)yPos;
+            firstMouse = false;
+        }
+
+        GLfloat xOffset = (GLfloat)xPos - lastX;
+        GLfloat yOffset = lastY - (GLfloat)yPos;  
+
+        lastX = (GLfloat)xPos;
+        lastY = (GLfloat)yPos;
+
+        camera.ProcessMouseMovement(xOffset, yOffset);
+    }
