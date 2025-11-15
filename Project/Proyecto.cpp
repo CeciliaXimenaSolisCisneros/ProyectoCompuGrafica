@@ -623,7 +623,7 @@ int main() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Escena (pasto + cielo procedural)", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Nenis", nullptr, nullptr);
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return EXIT_FAILURE; }
 
     glfwMakeContextCurrent(window);
